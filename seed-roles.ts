@@ -1,0 +1,35 @@
+import { db } from './db'
+import { roles, levels } from './db/schema'
+
+async function seedDatabase() {
+  console.log('🌱 جاري إضافة البيانات الأساسية...')
+
+  try {
+    // 1. إضافة الأدوار
+    console.log('📌 إضافة الأدوار...')
+    await db.insert(roles).values([
+      { id: 'r1', name: 'Eigentümer', description: 'مالك المنصة' },
+      { id: 'r2', name: 'Lehrer', description: 'المدرس' },
+      { id: 'r3', name: 'Assistent', description: 'المساعد' },
+      { id: 'r4', name: 'Student', description: 'الطالب' },
+    ])
+    console.log('✅ تم إضافة الأدوار')
+
+    // 2. إضافة المستويات
+    console.log('📌 إضافة المستويات...')
+    await db.insert(levels).values([
+      { id: 'l1', code: 'A1', title: 'A1 - Anfänger', description: 'المستوى المبتدئ' },
+      { id: 'l2', code: 'A2', title: 'A2 - Grundstufe', description: 'المستوى الأساسي' },
+      { id: 'l3', code: 'B1', title: 'B1 - Mittelstufe', description: 'المستوى المتوسط' },
+      { id: 'l4', code: 'B2', title: 'B2 - Fortgeschritten', description: 'المستوى فوق المتوسط' },
+    ])
+    console.log('✅ تم إضافة المستويات')
+
+    console.log('🎉 تم إضافة جميع البيانات الأساسية بنجاح!')
+
+  } catch (error) {
+    console.error('❌ خطأ:', error)
+  }
+}
+
+seedDatabase().catch(console.error)
