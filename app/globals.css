@@ -7,9 +7,33 @@
   }
 }
 
+/* ✅ تحسين العرض على الموبايل */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
 body {
+  max-width: 100vw;
+  overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
+}
+
+/* ✅ منع التكبير غير المرغوب فيه على الموبايل */
+input,
+textarea,
+select,
+button {
+  font-size: 16px;
+}
+
+/* ✅ تحسين اللمس على الموبايل */
+button,
+a {
+  touch-action: manipulation;
 }
 
 /* ✅ خلفية الصورة - ثابتة */
