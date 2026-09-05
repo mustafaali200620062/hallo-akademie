@@ -27,28 +27,30 @@ export default function LessonsManagementPage() {
     fetchData()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer' && parsed.role !== 'Lehrer') {
+      router.push('/unauthorized')
       return
     }
   }
 
   const fetchData = async () => {
     try {
-      // جلب الشروح
       const lessonsRes = await fetch('/api/lessons')
       const lessonsData = await lessonsRes.json()
       if (lessonsRes.ok) setLessons(lessonsData || [])
 
-      // جلب المجموعات
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       if (groupsRes.ok) setGroups(groupsData || [])
 
-      // جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])

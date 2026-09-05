@@ -23,28 +23,30 @@ export default function EigentuemerGroupsPage() {
     fetchData()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer' && parsed.role !== 'Assistent') {
+      router.push('/unauthorized')
       return
     }
   }
 
   const fetchData = async () => {
     try {
-      // جلب المجموعات
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       if (groupsRes.ok) setGroups(groupsData || [])
 
-      // جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
 
-      // جلب المدرسين
       const teachersRes = await fetch('/api/teachers')
       const teachersData = await teachersRes.json()
       if (teachersRes.ok) setTeachers(teachersData || [])
@@ -117,7 +119,6 @@ export default function EigentuemerGroupsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-black text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -135,7 +136,6 @@ export default function EigentuemerGroupsPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -143,7 +143,6 @@ export default function EigentuemerGroupsPage() {
           </div>
         )}
 
-        {/* زر الإضافة */}
         <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600">إجمالي المجموعات: <span className="font-bold">{groups.length}</span></p>
           <button
@@ -154,7 +153,6 @@ export default function EigentuemerGroupsPage() {
           </button>
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">إضافة مجموعة جديدة</h2>
@@ -225,7 +223,6 @@ export default function EigentuemerGroupsPage() {
           </div>
         )}
 
-        {/* قائمة المجموعات */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

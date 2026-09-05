@@ -20,11 +20,16 @@ export default function TeachersManagementPage() {
     fetchTeachers()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
       return
     }
   }
@@ -103,7 +108,6 @@ export default function TeachersManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-red-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -121,7 +125,6 @@ export default function TeachersManagementPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -135,7 +138,6 @@ export default function TeachersManagementPage() {
           </div>
         )}
 
-        {/* زر الإضافة */}
         <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600">عدد المدرسين: <span className="font-bold">{teachers.length}</span></p>
           <button
@@ -146,7 +148,6 @@ export default function TeachersManagementPage() {
           </button>
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">إضافة مدرس جديد</h2>
@@ -186,7 +187,6 @@ export default function TeachersManagementPage() {
           </div>
         )}
 
-        {/* قائمة المدرسين */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

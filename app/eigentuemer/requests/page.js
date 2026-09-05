@@ -16,11 +16,16 @@ export default function RequestsManagementPage() {
     fetchRequests()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer' && parsed.role !== 'Assistent') {
+      router.push('/unauthorized')
       return
     }
   }

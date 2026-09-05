@@ -20,10 +20,16 @@ export default function AssistantsManagementPage() {
     fetchAssistants()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
     const userData = localStorage.getItem('user')
     if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
       return
     }
   }
