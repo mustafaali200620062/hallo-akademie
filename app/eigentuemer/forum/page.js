@@ -22,23 +22,26 @@ export default function EigentuemerForumPage() {
     fetchData()
   }, [])
 
+  // ✅ التعديل هنا
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
+      return
+    }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
       return
     }
   }
 
   const fetchData = async () => {
     try {
-      // جلب جميع المنشورات (المالك يرى كل شيء)
       const postsRes = await fetch('/api/forum/posts')
       const postsData = await postsRes.json()
       if (postsRes.ok) setPosts(postsData || [])
 
-      // جلب جميع المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
@@ -157,7 +160,6 @@ export default function EigentuemerForumPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-black text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -175,7 +177,6 @@ export default function EigentuemerForumPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -183,7 +184,6 @@ export default function EigentuemerForumPage() {
           </div>
         )}
 
-        {/* زر الإضافة */}
         <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600">إجمالي المنشورات: <span className="font-bold">{posts.length}</span></p>
           <button
@@ -194,7 +194,6 @@ export default function EigentuemerForumPage() {
           </button>
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">منشور جديد</h2>
@@ -250,7 +249,6 @@ export default function EigentuemerForumPage() {
           </div>
         )}
 
-        {/* المنشورات */}
         <div className="space-y-6">
           {posts.length === 0 ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
@@ -285,7 +283,6 @@ export default function EigentuemerForumPage() {
 
                 <p className="mt-4 text-gray-700 whitespace-pre-wrap">{post.body}</p>
 
-                {/* التعليقات */}
                 <div className="mt-4 border-t pt-4">
                   <h4 className="text-sm font-semibold text-gray-600 mb-3">
                     💬 التعليقات ({post.comments?.length || 0})
@@ -314,7 +311,6 @@ export default function EigentuemerForumPage() {
                     ))}
                   </div>
 
-                  {/* إضافة تعليق */}
                   <div className="mt-3 flex gap-2">
                     <input
                       type="text"
