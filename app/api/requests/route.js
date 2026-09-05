@@ -73,7 +73,7 @@ export async function PUT(request) {
         .update(joinRequests)
         .set({
           status: 'approved',
-          reviewed_at: new Date().toISOString()
+          reviewed_at: new Date(Date.now()).toISOString()
         })
         .where(eq(joinRequests.id, request_id))
 
