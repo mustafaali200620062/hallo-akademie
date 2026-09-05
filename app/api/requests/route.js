@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { joinRequests, profiles, roles, levels } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { joinRequests, profiles, levels } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 export async function GET() {
   try {
@@ -20,8 +20,7 @@ export async function GET() {
       .from(joinRequests)
       .leftJoin(profiles, eq(joinRequests.student_id, profiles.id))
       .leftJoin(levels, eq(joinRequests.level_id, levels.id))
-      .orderBy('created_at', 'desc')
-      .all()
+      .orderBy(desc(joinRequests.created_at))
 
     return NextResponse.json(requests || [])
   } catch (error) {
@@ -43,39 +42,33 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    // جلب بيانات الطلب
     const requestData = await db
       .select()
       .from(joinRequests)
       .where(eq(joinRequests.id, request_id))
-      .get()
 
-    if (!requestData) {
+    if (!requestData || requestData.length === 0) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 })
     }
 
-    // جلب بيانات الطالب
     const student = await db
       .select()
       .from(profiles)
-      .where(eq(profiles.id, requestData.student_id))
-      .get()
+      .where(eq(profiles.id, requestData[0].student_id))
 
-    if (!student) {
+    if (!student || student.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
 
     if (status === 'approved') {
-      // قبول: تحديث حالة الطالب
       await db
         .update(profiles)
         .set({
-          is_active: 1,
-          is_approved: 1
+          is_active: true,
+          is_approved: true
         })
-        .where(eq(profiles.id, requestData.student_id))
+        .where(eq(profiles.id, requestData[0].student_id))
 
-      // تحديث حالة الطلب
       await db
         .update(joinRequests)
         .set({
@@ -91,17 +84,13 @@ export async function PUT(request) {
       })
 
     } else {
-      // رفض: حذف الطالب وطلب الانضمام
-      
-      // 1. حذف طلب الانضمام
       await db
         .delete(joinRequests)
         .where(eq(joinRequests.id, request_id))
 
-      // 2. حذف الطالب من profiles
       await db
         .delete(profiles)
-        .where(eq(profiles.id, requestData.student_id))
+        .where(eq(profiles.id, requestData[0].student_id))
 
       return NextResponse.json({ 
         success: true, 
