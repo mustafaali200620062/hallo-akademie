@@ -125,11 +125,11 @@ export default function StudentPage() {
       <div className="absolute inset-0 w-full h-full bg-black/30 blur-overlay"></div>
 
       {/* المحتوى الرئيسي */}
-      <div className="flex-1 p-6 overflow-y-auto order-first relative z-10">
+      <div className="flex-1 p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
         {activeTab === 'dashboard' && (
           <>
             {/* بطاقات الإحصائيات */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 card-mobile">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <div>
@@ -174,7 +174,7 @@ export default function StudentPage() {
             </div>
 
             {/* قسم المستوى والأخطاء */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 card-mobile">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
                 <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📊 Rank
@@ -261,9 +261,9 @@ export default function StudentPage() {
       </div>
 
       {/* القائمة الجانبية - تدرج ألوان علم ألمانيا */}
-      <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10">
+      <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
         {/* الهيدر */}
-        <div className="p-6 border-b border-white/10">
+        <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-lg shadow-green-500/25">
               <img src="/logo.png" alt="Logo" className="h-6 w-auto" />
@@ -276,7 +276,7 @@ export default function StudentPage() {
         </div>
 
         {/* الطالب */}
-        <div className="p-6 border-b border-white/10">
+        <div className="p-6 border-b border-white/10 sidebar-user">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-2xl text-white font-extrabold shadow-lg shadow-green-500/25">
               {studentName.charAt(0)}
@@ -348,7 +348,7 @@ export default function StudentPage() {
         </nav>
 
         {/* زر الخروج - Logout */}
-        <div className="absolute bottom-0 w-72 p-6 border-t border-white/10">
+        <div className="absolute bottom-0 w-72 p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {
               localStorage.removeItem('user')
