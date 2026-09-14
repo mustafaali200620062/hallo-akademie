@@ -69,11 +69,12 @@ export async function PUT(request) {
         })
         .where(eq(profiles.id, requestData[0].student_id))
 
+      // ✅ استخدام new Date() مباشرة (بدون toISOString)
       await db
         .update(joinRequests)
         .set({
           status: 'approved',
-          reviewed_at: new Date(Date.now()).toISOString()
+          reviewed_at: new Date()
         })
         .where(eq(joinRequests.id, request_id))
 
