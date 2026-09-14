@@ -2,17 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
-
-// ✅ تحميل PDF Viewer فقط على الـ client
-const PDFViewer = dynamic(() => import('./PDFViewer'), {
-  ssr: false,
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="text-2xl font-bold text-white">جاري التحميل...</div>
-    </div>
-  ),
-})
 
 function ViewerContent() {
   const router = useRouter()
@@ -111,6 +100,9 @@ function ViewerContent() {
     )
   }
 
+  // ✅ Google Docs Viewer
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`
+
   return (
     <div className="min-h-screen bg-gray-900 select-none">
       {/* شريط علوي */}
@@ -128,7 +120,26 @@ function ViewerContent() {
       </div>
 
       {/* عرض الملف */}
-      <PDFViewer fileUrl={fileUrl} />
+      <div className="relative w-full" style={{ height: 'calc(100vh - 60px)' }}>
+        <iframe
+          src={viewerUrl}
+          className="w-full h-full border-0"
+          title={title}
+          sandbox="allow-scripts allow-same-origin allow-popups"
+        />
+
+        {/* ✅ طبقة شفافة تغطي شريط الأدوات في Google Docs Viewer */}
+        <div
+          className="absolute bg-transparent"
+          style={{
+            top: '0',
+            right: '0',
+            width: '200px',
+            height: '60px',
+            zIndex: 10,
+          }}
+        />
+      </div>
 
       <style jsx global>{`
         body {
@@ -139,17 +150,16 @@ function ViewerContent() {
           -webkit-touch-callout: none;
         }
 
-        img, canvas {
+        iframe {
+          pointer-events: auto;
+        }
+
+        img, iframe {
           -webkit-user-drag: none;
           -khtml-user-drag: none;
           -moz-user-drag: none;
           -o-user-drag: none;
           user-drag: none;
-        }
-
-        .react-pdf__Page__annotations,
-        .annotationLayer {
-          display: none !important;
         }
       `}</style>
     </div>
