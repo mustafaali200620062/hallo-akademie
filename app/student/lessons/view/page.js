@@ -2,12 +2,17 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Document, Page, pdfjs } from 'react-pdf'
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
+import dynamic from 'next/dynamic'
 
-// ✅ إعداد PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+// ✅ تحميل PDF Viewer فقط على الـ client
+const PDFViewer = dynamic(() => import('./PDFViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="text-2xl font-bold text-white">جاري التحميل...</div>
+    </div>
+  ),
+})
 
 function ViewerContent() {
   const router = useRouter()
@@ -18,7 +23,6 @@ function ViewerContent() {
   const [fileUrl, setFileUrl] = useState(null)
   const [title, setTitle] = useState('')
   const [error, setError] = useState(null)
-  const [numPages, setNumPages] = useState(null)
 
   useEffect(() => {
     const handleContextMenu = (e) => {
@@ -81,10 +85,6 @@ function ViewerContent() {
     }
   }
 
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages)
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -118,11 +118,6 @@ function ViewerContent() {
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           <h1 className="font-bold text-lg">{title}</h1>
-          {numPages && (
-            <span className="text-xs bg-gray-700 px-2 py-1 rounded">
-              {numPages} صفحة
-            </span>
-          )}
         </div>
         <button
           onClick={() => router.push('/student/lessons')}
@@ -133,29 +128,7 @@ function ViewerContent() {
       </div>
 
       {/* عرض الملف */}
-      <div className="flex flex-col items-center py-6 overflow-auto" style={{ height: 'calc(100vh - 60px)' }}>
-        <Document
-          file={fileUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          loading={<div className="text-white text-xl">جاري تحميل المستند...</div>}
-          error={<div className="text-red-400 text-xl">فشل تحميل المستند</div>}
-          options={{
-            cMapUrl: '/cmaps/',
-            cMapPacked: true,
-          }}
-        >
-          {Array.from(new Array(numPages), (el, index) => (
-            <div key={`page_${index + 1}`} className="mb-4 shadow-2xl">
-              <Page
-                pageNumber={index + 1}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                width={Math.min(window.innerWidth - 40, 800)}
-              />
-            </div>
-          ))}
-        </Document>
-      </div>
+      <PDFViewer fileUrl={fileUrl} />
 
       <style jsx global>{`
         body {
@@ -174,7 +147,6 @@ function ViewerContent() {
           user-drag: none;
         }
 
-        /* ✅ إخفاء أزرار التحميل والطباعة */
         .react-pdf__Page__annotations,
         .annotationLayer {
           display: none !important;
