@@ -12,6 +12,9 @@ export default function LessonsManagementPage() {
   const [showForm, setShowForm] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncLevel, setSyncLevel] = useState('')
+  const [showSyncForm, setShowSyncForm] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -124,6 +127,42 @@ export default function LessonsManagementPage() {
     }
   }
 
+  // ✅ دالة المزامنة مع R2
+  const handleSyncR2 = async () => {
+    if (!syncLevel) {
+      setError('يرجى اختيار المستوى أولاً')
+      return
+    }
+
+    setSyncing(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const res = await fetch('/api/r2/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level_id: syncLevel })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'حدث خطأ في المزامنة')
+      }
+
+      setSuccess(`✅ ${data.message}`)
+      await fetchData()
+      setSyncLevel('')
+      setShowSyncForm(false)
+      setTimeout(() => setSuccess(null), 5000)
+    } catch (error) {
+      setError(error.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const handlePreview = async (lessonId) => {
     try {
       const res = await fetch(`/api/files/${lessonId}`)
@@ -198,15 +237,63 @@ export default function LessonsManagementPage() {
           </div>
         )}
 
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6 flex flex-wrap justify-between items-center gap-2">
           <p className="text-gray-600 font-bold">إجمالي الشروح: <span className="font-extrabold">{lessons.length}</span></p>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors"
-          >
-            {showForm ? '× إلغاء' : '+ رفع ملف PDF جديد'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowSyncForm(!showSyncForm)
+                setShowForm(false)
+              }}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+            >
+              {showSyncForm ? '× إلغاء' : '🔄 مزامنة مع R2'}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(!showForm)
+                setShowSyncForm(false)
+              }}
+              className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors"
+            >
+              {showForm ? '× إلغاء' : '+ رفع ملف PDF جديد'}
+            </button>
+          </div>
         </div>
+
+        {/* ✅ نموذج المزامنة مع R2 */}
+        {showSyncForm && (
+          <div className="bg-blue-50 rounded-xl shadow-lg p-6 mb-6 border border-blue-200">
+            <h2 className="text-xl font-bold mb-4 text-blue-900">🔄 مزامنة الملفات من Cloudflare R2</h2>
+            <p className="text-sm text-blue-700 mb-4">
+              هيتم جلب كل الملفات الموجودة في مجلد <code className="bg-blue-100 px-2 py-0.5 rounded">lessons/</code> على R2 وإضافتها للمنصة.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">اختر المستوى للمزامنة *</label>
+                <select
+                  value={syncLevel}
+                  onChange={(e) => setSyncLevel(e.target.value)}
+                  className="w-full px-4 py-2 border-2 border-blue-200 rounded-xl text-gray-900 font-bold"
+                >
+                  <option value="">اختر المستوى</option>
+                  {levels.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.code} - {level.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleSyncR2}
+                disabled={syncing || !syncLevel}
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-extrabold rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50"
+              >
+                {syncing ? '⏳ جاري المزامنة...' : '🔄 بدء المزامنة'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
