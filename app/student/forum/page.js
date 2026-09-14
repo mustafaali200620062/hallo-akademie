@@ -65,8 +65,6 @@ export default function StudentForumPage() {
       const postsData = await postsRes.json()
 
       if (postsRes.ok) {
-        // للطالب: يعرض فقط منشورات مستواه
-        // للأدمن: يعرض كل المنشورات
         if (isAdmin) {
           setPosts(postsData || [])
         } else {
@@ -88,17 +86,21 @@ export default function StudentForumPage() {
     setError(null)
     setSuccess(null)
 
-    // ✅ للطالب: التأكد من أن المستوى هو مستواه فقط
     if (!isAdmin && formData.level_id !== userLevel) {
       setError('لا يمكنك النشر إلا في منتدى مستواك فقط')
       return
     }
 
     try {
+      const userData = JSON.parse(localStorage.getItem('user'))
+
       const response = await fetch('/api/forum/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          author_id: userData.id
+        })
       })
 
       const data = await response.json()
@@ -108,7 +110,6 @@ export default function StudentForumPage() {
       }
 
       setSuccess('✅ تم نشر المنشور بنجاح!')
-      const userData = JSON.parse(localStorage.getItem('user'))
       await fetchData(userData)
       setShowForm(false)
       setFormData({
@@ -128,12 +129,15 @@ export default function StudentForumPage() {
     if (!content || content.trim() === '') return
 
     try {
+      const userData = JSON.parse(localStorage.getItem('user'))
+
       const response = await fetch('/api/forum/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           post_id: postId,
-          body: content
+          body: content,
+          author_id: userData.id
         })
       })
 
@@ -144,7 +148,6 @@ export default function StudentForumPage() {
       }
 
       setCommentData({ ...commentData, [postId]: '' })
-      const userData = JSON.parse(localStorage.getItem('user'))
       await fetchData(userData)
 
     } catch (error) {
@@ -212,7 +215,6 @@ export default function StudentForumPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-purple-600 text-white shadow-lg sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -240,7 +242,6 @@ export default function StudentForumPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-3xl mx-auto px-4 py-6">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
@@ -254,14 +255,12 @@ export default function StudentForumPage() {
           </div>
         )}
 
-        {/* رسالة توضيحية */}
         {!isAdmin && userLevelCode && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-4 font-bold text-sm">
             ℹ️ يمكنك النشر والتعليق فقط في منتدى مستوى <strong>{userLevelCode}</strong>
           </div>
         )}
 
-        {/* زر إضافة منشور */}
         {userLevel && (
           <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
             <div className="flex items-center gap-3">
@@ -286,7 +285,6 @@ export default function StudentForumPage() {
           </div>
         )}
 
-        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -312,11 +310,8 @@ export default function StudentForumPage() {
                 />
               </div>
 
-              {/* ✅ للطالب: المستوى ثابت ومقفول */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  المستوى:
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">المستوى:</label>
                 {isAdmin ? (
                   <select
                     required
@@ -350,7 +345,6 @@ export default function StudentForumPage() {
           </div>
         )}
 
-        {/* المنشورات */}
         <div className="space-y-4">
           {posts.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-500 border border-gray-100">
@@ -402,7 +396,6 @@ export default function StudentForumPage() {
                   </button>
                 </div>
 
-                {/* التعليقات */}
                 <div className="mt-4 mr-16 border-t border-gray-100 pt-4">
                   <div className="space-y-3">
                     {post.comments?.length === 0 ? (

@@ -1,20 +1,15 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { forumPosts, profiles, levels } from '@/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 
-export async function GET() {
+// ✅ جلب المنشورات
+export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { searchParams } = new URL(request.url)
+    const levelId = searchParams.get('level_id')
 
-    // جلب جميع المنشورات مع بيانات المؤلف والمستوى
-    const posts = await db
+    let query = db
       .select({
         id: forumPosts.id,
         title: forumPosts.title,
@@ -29,44 +24,71 @@ export async function GET() {
       .leftJoin(profiles, eq(forumPosts.author_id, profiles.id))
       .leftJoin(levels, eq(forumPosts.level_id, levels.id))
       .orderBy(desc(forumPosts.created_at))
-      .all()
 
-    return NextResponse.json(posts || [])
+    // ✅ لو في level_id، نفلتر
+    if (levelId) {
+      query = query.where(eq(forumPosts.level_id, levelId))
+    }
+
+    const posts = await query
+
+    // ✅ جلب التعليقات لكل منشور
+    const { forumComments } = await import('@/db/schema')
+
+    const postsWithComments = await Promise.all(
+      posts.map(async (post) => {
+        const comments = await db
+          .select({
+            id: forumComments.id,
+            body: forumComments.body,
+            created_at: forumComments.created_at,
+            author_name: profiles.full_name,
+          })
+          .from(forumComments)
+          .leftJoin(profiles, eq(forumComments.author_id, profiles.id))
+          .where(eq(forumComments.post_id, post.id))
+          .orderBy(desc(forumComments.created_at))
+
+        return { ...post, comments: comments || [] }
+      })
+    )
+
+    return NextResponse.json(postsWithComments || [])
   } catch (error) {
     console.error('❌ خطأ في جلب المنشورات:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ إنشاء منشور جديد
 export async function POST(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { title, body: content, level_id } = body
+    const { title, body: content, level_id, author_id } = body
 
-    if (!title || !content) {
-      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 })
+    if (!title || !content || !author_id) {
+      return NextResponse.json({ error: 'Title, content, and author are required' }, { status: 400 })
     }
 
-    // إنشاء المنشور
+    if (!level_id) {
+      return NextResponse.json({ error: 'Level is required' }, { status: 400 })
+    }
+
+    // ✅ إنشاء المنشور
     const postId = crypto.randomUUID()
     await db.insert(forumPosts).values({
       id: postId,
       title,
       body: content,
       level_id,
-      author_id: session.user.id
+      author_id,
+      created_at: new Date(),
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       id: postId,
-      message: 'Post created successfully' 
+      message: 'Post created successfully'
     })
   } catch (error) {
     console.error('❌ خطأ في إنشاء المنشور:', error)
@@ -74,14 +96,9 @@ export async function POST(request) {
   }
 }
 
+// ✅ حذف منشور
 export async function DELETE(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -89,10 +106,12 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Post ID required' }, { status: 400 })
     }
 
-    // حذف المنشور
-    await db
-      .delete(forumPosts)
-      .where(eq(forumPosts.id, id))
+    // ✅ حذف التعليقات المرتبطة
+    const { forumComments } = await import('@/db/schema')
+    await db.delete(forumComments).where(eq(forumComments.post_id, id))
+
+    // ✅ حذف المنشور
+    await db.delete(forumPosts).where(eq(forumPosts.id, id))
 
     return NextResponse.json({ success: true })
   } catch (error) {
