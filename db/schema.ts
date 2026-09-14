@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 // ========== الأدوار ==========
@@ -88,6 +88,14 @@ export const lessons = pgTable('lessons', {
   published_at: timestamp('published_at'),
   created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   updated_at: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ========== ربط الملفات بالمجموعات ==========
+export const groupLessons = pgTable('group_lessons', {
+  id: text('id').primaryKey(),
+  lesson_id: text('lesson_id').references(() => lessons.id),
+  group_id: text('group_id').references(() => groups.id),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
 })
 
 // ========== الاختبارات ==========

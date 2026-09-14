@@ -6,20 +6,10 @@ import { useRouter } from 'next/navigation'
 export default function LehrerLessonsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [lessons, setLessons] = useState([])
+  const [allFiles, setAllFiles] = useState([])
   const [groups, setGroups] = useState([])
-  const [levels, setLevels] = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    content: '',
-    content_url: '',
-    content_type: 'text',
-    group_id: '',
-    level_id: '',
-    is_published: false
-  })
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedGroups, setSelectedGroups] = useState([])
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
@@ -43,6 +33,11 @@ export default function LehrerLessonsPage() {
 
   const fetchData = async (teacherId) => {
     try {
+      // ✅ جلب جميع الملفات
+      const filesRes = await fetch('/api/lessons')
+      const filesData = await filesRes.json()
+      if (filesRes.ok) setAllFiles(filesData || [])
+
       // ✅ جلب مجموعات المدرس
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
@@ -50,19 +45,6 @@ export default function LehrerLessonsPage() {
         const teacherGroups = groupsData.filter(g => g.teacher_id === teacherId)
         setGroups(teacherGroups || [])
       }
-
-      // ✅ جلب الشروح
-      const lessonsRes = await fetch('/api/lessons')
-      const lessonsData = await lessonsRes.json()
-      if (lessonsRes.ok) {
-        const teacherLessons = lessonsData.filter(l => l.created_by === teacherId)
-        setLessons(teacherLessons || [])
-      }
-
-      // ✅ جلب المستويات
-      const levelsRes = await fetch('/api/levels')
-      const levelsData = await levelsRes.json()
-      if (levelsRes.ok) setLevels(levelsData || [])
 
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -72,65 +54,51 @@ export default function LehrerLessonsPage() {
     }
   }
 
-  // ✅ إضافة شرح يدوي
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
+  // ✅ فتح نافذة اختيار المجموعات
+  const openAssignModal = (file) => {
+    setSelectedFile(file)
+    setSelectedGroups([])
+  }
 
-    try {
-      const userData = JSON.parse(localStorage.getItem('user'))
-
-      const response = await fetch('/api/lessons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          created_by: userData.id,
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'حدث خطأ')
-      }
-
-      setSuccess('✅ تم إضافة الشرح بنجاح!')
-      await fetchData(userData.id)
-      setShowForm(false)
-      setFormData({
-        title: '',
-        description: '',
-        content: '',
-        content_url: '',
-        content_type: 'text',
-        group_id: '',
-        level_id: '',
-        is_published: false
-      })
-
-    } catch (error) {
-      setError(error.message)
+  // ✅ تبديل اختيار المجموعة
+  const toggleGroup = (groupId) => {
+    if (selectedGroups.includes(groupId)) {
+      setSelectedGroups(selectedGroups.filter(id => id !== groupId))
+    } else {
+      setSelectedGroups([...selectedGroups, groupId])
     }
   }
 
-  // ✅ حذف شرح
-  const handleDelete = async (id) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الشرح؟')) return
+  // ✅ إضافة الملف للمجموعات المختارة
+  const handleAssign = async () => {
+    if (selectedGroups.length === 0) {
+      setError('يرجى اختيار مجموعة واحدة على الأقل')
+      return
+    }
 
     try {
-      const response = await fetch(`/api/lessons?id=${id}`, {
-        method: 'DELETE'
+      const res = await fetch('/api/lessons/assign-multiple', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lesson_id: selectedFile.id,
+          group_ids: selectedGroups,
+        })
       })
 
-      if (!response.ok) {
-        const data = await response.json()
+      const data = await res.json()
+
+      if (!res.ok) {
         throw new Error(data.error || 'حدث خطأ')
       }
 
+      setSuccess(`✅ تم إضافة الملف لـ ${selectedGroups.length} مجموعة`)
+      setSelectedFile(null)
+      setSelectedGroups([])
       const userData = JSON.parse(localStorage.getItem('user'))
       await fetchData(userData.id)
+      setTimeout(() => setSuccess(null), 3000)
+
     } catch (error) {
       setError(error.message)
     }
@@ -192,215 +160,67 @@ export default function LehrerLessonsPage() {
           </div>
         )}
 
-        <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600 font-bold">
-            إجمالي الشروح: <span className="font-extrabold">{lessons.length}</span>
-          </p>
-          {groups.length > 0 && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors"
-            >
-              {showForm ? '× إلغاء' : '+ إضافة شرح جديد'}
-            </button>
-          )}
-        </div>
-
-        {showForm && groups.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">إضافة شرح جديد</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700">عنوان الشرح</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  placeholder="عنوان الشرح"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700">الوصف</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  rows="2"
-                  placeholder="وصف الشرح..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700">المحتوى (نص)</label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  rows="4"
-                  placeholder="محتوى الشرح..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">نوع المحتوى</label>
-                  <select
-                    value={formData.content_type}
-                    onChange={(e) => setFormData({ ...formData, content_type: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="text">نص</option>
-                    <option value="pdf">PDF</option>
-                    <option value="image">صورة</option>
-                    <option value="audio">مقطع صوتي</option>
-                    <option value="video">فيديو</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">رابط الملف (اختياري)</label>
-                  <input
-                    type="url"
-                    value={formData.content_url}
-                    onChange={(e) => setFormData({ ...formData, content_url: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                    placeholder="https://example.com/file.pdf"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">المجموعة</label>
-                  <select
-                    required
-                    value={formData.group_id}
-                    onChange={(e) => {
-                      const group = groups.find(g => g.id === e.target.value)
-                      setFormData({
-                        ...formData,
-                        group_id: e.target.value,
-                        level_id: group?.level_id || ''
-                      })
-                    }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="">اختر المجموعة</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} - {group.level_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">المستوى</label>
-                  <select
-                    required
-                    value={formData.level_id}
-                    onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="">اختر المستوى</option>
-                    {levels.map((level) => (
-                      <option key={level.id} value={level.id}>
-                        {level.code} - {level.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_published}
-                  onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                />
-                <label className="text-sm font-bold text-gray-700">نشر الشرح فوراً</label>
-              </div>
-
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
-              >
-                ✅ إضافة الشرح
-              </button>
-            </form>
-          </div>
-        )}
-
         {groups.length === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4 font-bold">
-            ⚠️ لا توجد مجموعات مخصصة لك. لا يمكنك إنشاء شروح.
+            ⚠️ لا توجد مجموعات مخصصة لك. تواصل مع الإدارة.
           </div>
         )}
 
+        {/* قائمة الملفات */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">
+              📚 جميع الملفات المتاحة ({allFiles.length})
+            </h2>
+            <p className="text-gray-600 text-sm mt-1">
+              اختر ملف عشان تضيفه لمجموعاتك
+            </p>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">العنوان</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المجموعة</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المستوى</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">النوع</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الحالة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المجموعة الحالية</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {lessons.length === 0 ? (
+                {allFiles.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500 font-bold">
-                      <div className="text-4xl mb-2">📚</div>
-                      لا توجد شروح
+                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500 font-bold">
+                      <div className="text-4xl mb-2">📭</div>
+                      لا توجد ملفات متاحة
                     </td>
                   </tr>
                 ) : (
-                  lessons.map((lesson) => (
-                    <tr key={lesson.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-bold text-gray-900">{lesson.title}</td>
-                      <td className="px-6 py-4 text-gray-600 font-bold">{lesson.group_name || '-'}</td>
+                  allFiles.map((file) => (
+                    <tr key={file.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-bold text-gray-900">{file.title}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
-                          {lesson.level_code}
+                          {file.level_code}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold">
-                          {lesson.content_type === 'text' ? 'نص' :
-                           lesson.content_type === 'pdf' ? 'PDF' :
-                           lesson.content_type === 'image' ? 'صورة' :
-                           lesson.content_type === 'audio' ? 'صوتي' :
-                           lesson.content_type === 'video' ? 'فيديو' : lesson.content_type}
-                        </span>
+                      <td className="px-6 py-4 text-gray-600 font-bold">
+                        {file.group_name || 'غير معين'}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${lesson.is_published ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {lesson.is_published ? 'منشور' : 'مسودة'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {lesson.content_url && (
+                        <button
+                          onClick={() => handlePreview(file.id)}
+                          className="text-blue-600 hover:text-blue-800 font-bold transition-colors mr-3"
+                        >
+                          👁️ معاينة
+                        </button>
+                        {groups.length > 0 && (
                           <button
-                            onClick={() => handlePreview(lesson.id)}
-                            className="text-blue-600 hover:text-blue-800 font-bold transition-colors mr-3"
+                            onClick={() => openAssignModal(file)}
+                            className="text-purple-600 hover:text-purple-800 font-bold transition-colors"
                           >
-                            👁️ معاينة
+                            ➕ إضافة لمجموعة
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDelete(lesson.id)}
-                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
-                        >
-                          🗑️ حذف
-                        </button>
                       </td>
                     </tr>
                   ))
@@ -410,6 +230,74 @@ export default function LehrerLessonsPage() {
           </div>
         </div>
       </div>
+
+      {/* ✅ نافذة اختيار المجموعات */}
+      {selectedFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">
+                ➕ إضافة ملف لمجموعات
+              </h2>
+              <button
+                onClick={() => setSelectedFile(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="font-bold text-gray-900">📄 {selectedFile.title}</p>
+                <p className="text-sm text-gray-600">المستوى: {selectedFile.level_code}</p>
+              </div>
+
+              <label className="block text-sm font-bold text-gray-700 mb-3">
+                اختر المجموعات ({selectedGroups.length} مختارة):
+              </label>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {groups.map((group) => (
+                  <label
+                    key={group.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedGroups.includes(group.id)
+                        ? 'bg-purple-50 border-purple-400'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroups.includes(group.id)}
+                      onChange={() => toggleGroup(group.id)}
+                      className="h-5 w-5 text-purple-600 focus:ring-purple-500 rounded"
+                    />
+                    <span className="font-bold text-gray-900">
+                      {group.name} - {group.level_code}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={handleAssign}
+                  disabled={selectedGroups.length === 0}
+                  className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-50"
+                >
+                  ✅ إضافة ({selectedGroups.length})
+                </button>
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
