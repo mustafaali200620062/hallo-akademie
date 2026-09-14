@@ -10,6 +10,7 @@ export default function LehrerExamsPage() {
   const [groups, setGroups] = useState([])
   const [levels, setLevels] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [teacherId, setTeacherId] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,45 +22,46 @@ export default function LehrerExamsPage() {
     total_points: ''
   })
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     checkUser()
-    fetchData()
   }, [])
 
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Lehrer' && parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
+      return
+    }
+    setTeacherId(parsed.id)
+    await fetchData(parsed.id)
   }
 
-  const fetchData = async () => {
+  const fetchData = async (tId) => {
     try {
-      // جلب المجموعات التي يدرسها المدرس
+      // ✅ جلب المجموعات
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       if (groupsRes.ok) {
-        // تصفية المجموعات للمدرس الحالي
-        const userRes = await fetch('/api/auth/session')
-        const session = await userRes.json()
-        const teacherGroups = groupsData.filter(g => g.teacher_id === session?.user?.id)
+        const teacherGroups = groupsData.filter(g => g.teacher_id === tId)
         setGroups(teacherGroups || [])
       }
 
-      // جلب الاختبارات التي أنشأها المدرس
+      // ✅ جلب الاختبارات
       const examsRes = await fetch('/api/exams')
       const examsData = await examsRes.json()
       if (examsRes.ok) {
-        const userRes = await fetch('/api/auth/session')
-        const session = await userRes.json()
-        const teacherExams = examsData.filter(e => e.created_by === session?.user?.id)
+        const teacherExams = examsData.filter(e => e.created_by === tId)
         setExams(teacherExams || [])
       }
 
-      // جلب المستويات
+      // ✅ جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
@@ -75,12 +77,16 @@ export default function LehrerExamsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
 
     try {
       const response = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          created_by: teacherId
+        })
       })
 
       const data = await response.json()
@@ -89,7 +95,8 @@ export default function LehrerExamsPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      setSuccess('✅ تم إنشاء الاختبار بنجاح!')
+      await fetchData(teacherId)
       setShowForm(false)
       setFormData({
         title: '',
@@ -101,6 +108,7 @@ export default function LehrerExamsPage() {
         duration_minutes: '',
         total_points: ''
       })
+      setTimeout(() => setSuccess(null), 3000)
 
     } catch (error) {
       setError(error.message)
@@ -120,7 +128,7 @@ export default function LehrerExamsPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      await fetchData(teacherId)
     } catch (error) {
       setError(error.message)
     }
@@ -129,14 +137,13 @@ export default function LehrerExamsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-red-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -144,7 +151,7 @@ export default function LehrerExamsPage() {
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-bold">إدارة الاختبارات</h1>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/lehrer')}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors"
             >
@@ -154,34 +161,39 @@ export default function LehrerExamsPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            ❌ {error}
           </div>
         )}
 
-        {/* زر الإضافة */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            {success}
+          </div>
+        )}
+
         <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600">إجمالي الاختبارات: <span className="font-bold">{exams.length}</span></p>
+          <p className="text-gray-600 font-bold">
+            إجمالي الاختبارات: <span className="font-extrabold">{exams.length}</span>
+          </p>
           {groups.length > 0 && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors"
             >
               {showForm ? '× إلغاء' : '+ إضافة اختبار جديد'}
             </button>
           )}
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && groups.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">إضافة اختبار جديد</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">عنوان الاختبار</label>
+                <label className="block text-sm font-bold text-gray-700">عنوان الاختبار</label>
                 <input
                   type="text"
                   required
@@ -193,7 +205,7 @@ export default function LehrerExamsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">الوصف</label>
+                <label className="block text-sm font-bold text-gray-700">الوصف</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -205,14 +217,14 @@ export default function LehrerExamsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">المجموعة</label>
+                  <label className="block text-sm font-bold text-gray-700">المجموعة</label>
                   <select
                     required
                     value={formData.group_id}
                     onChange={(e) => {
                       const group = groups.find(g => g.id === e.target.value)
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         group_id: e.target.value,
                         level_id: group?.level_id || ''
                       })
@@ -229,7 +241,7 @@ export default function LehrerExamsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">المستوى</label>
+                  <label className="block text-sm font-bold text-gray-700">المستوى</label>
                   <select
                     required
                     value={formData.level_id}
@@ -248,7 +260,7 @@ export default function LehrerExamsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">تاريخ البدء</label>
+                  <label className="block text-sm font-bold text-gray-700">تاريخ البدء</label>
                   <input
                     type="datetime-local"
                     required
@@ -259,7 +271,7 @@ export default function LehrerExamsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">تاريخ الانتهاء</label>
+                  <label className="block text-sm font-bold text-gray-700">تاريخ الانتهاء</label>
                   <input
                     type="datetime-local"
                     required
@@ -272,7 +284,7 @@ export default function LehrerExamsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">المدة (دقائق)</label>
+                  <label className="block text-sm font-bold text-gray-700">المدة (دقائق)</label>
                   <input
                     type="number"
                     required
@@ -285,7 +297,7 @@ export default function LehrerExamsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">الدرجة الكلية</label>
+                  <label className="block text-sm font-bold text-gray-700">الدرجة الكلية</label>
                   <input
                     type="number"
                     required
@@ -301,7 +313,7 @@ export default function LehrerExamsPage() {
 
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
               >
                 ✅ إنشاء الاختبار
               </button>
@@ -310,29 +322,28 @@ export default function LehrerExamsPage() {
         )}
 
         {groups.length === 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4 font-bold">
             ⚠️ لا توجد مجموعات مخصصة لك. لا يمكنك إنشاء اختبارات.
           </div>
         )}
 
-        {/* قائمة الاختبارات */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">العنوان</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المجموعة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المستوى</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المدة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">العنوان</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المجموعة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المستوى</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المدة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الحالة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {exams.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">📝</div>
                       لا توجد اختبارات
                     </td>
@@ -340,23 +351,23 @@ export default function LehrerExamsPage() {
                 ) : (
                   exams.map((exam) => (
                     <tr key={exam.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">{exam.title}</td>
-                      <td className="px-6 py-4 text-gray-600">{exam.group_name || '-'}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{exam.title}</td>
+                      <td className="px-6 py-4 text-gray-600 font-bold">{exam.group_name || '-'}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
                           {exam.level_code}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">{exam.duration_minutes} دقيقة</td>
+                      <td className="px-6 py-4 text-gray-600 font-bold">{exam.duration_minutes} دقيقة</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs ${exam.status === 'active' ? 'bg-green-100 text-green-800' : exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${exam.status === 'active' ? 'bg-green-100 text-green-800' : exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
                           {exam.status === 'active' ? 'نشط' : exam.status === 'scheduled' ? 'مجدول' : 'منتهي'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleDelete(exam.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
                         >
                           🗑️ حذف
                         </button>
