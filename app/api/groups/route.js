@@ -1,154 +1,80 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { db } from '@/db'
+import { groups, levels, profiles } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
-export async function GET(request) {
+// ✅ جلب جميع المجموعات
+export async function GET() {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const allGroups = await db
+      .select({
+        id: groups.id,
+        name: groups.name,
+        description: groups.description,
+        is_active: groups.is_active,
+        created_at: groups.created_at,
+        level_id: groups.level_id,
+        level_code: levels.code,
+        level_title: levels.title,
+        teacher_id: groups.teacher_id,
+        teacher_name: profiles.full_name,
+      })
+      .from(groups)
+      .leftJoin(levels, eq(groups.level_id, levels.id))
+      .leftJoin(profiles, eq(groups.teacher_id, profiles.id))
+      .orderBy(desc(groups.created_at))
 
-    const { data: groups, error } = await supabase
-      .from('groups')
-      .select(`
-        *,
-        levels (code, title),
-        teacher:profiles!teacher_id (id, full_name)
-      `)
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-
-    return NextResponse.json(groups || [])
+    return NextResponse.json(allGroups || [])
   } catch (error) {
+    console.error('❌ Error fetching groups:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ إضافة مجموعة جديدة
 export async function POST(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { name, level_id, teacher_id, description } = await request.json()
+
+    if (!name || !level_id) {
+      return NextResponse.json({ error: 'Name and level are required' }, { status: 400 })
     }
 
-    const body = await request.json()
-    const { name, level_id, teacher_id, description } = body
+    const [newGroup] = await db.insert(groups).values({
+      id: crypto.randomUUID(),
+      name,
+      level_id,
+      teacher_id: teacher_id || null,
+      description: description || '',
+      is_active: true,
+      created_at: new Date(),
+    }).returning()
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Assistent'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const { data: group, error } = await supabase
-      .from('groups')
-      .insert({
-        name,
-        level_id,
-        teacher_id: teacher_id || null,
-        description: description || '',
-        is_active: true
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json(group)
+    return NextResponse.json({ 
+      success: true, 
+      group: newGroup 
+    })
   } catch (error) {
+    console.error('❌ Error creating group:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ حذف مجموعة
 export async function DELETE(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json({ error: 'Group ID required' }, { status: 400 })
+      return NextResponse.json({ error: 'Group ID is required' }, { status: 400 })
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Assistent'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await db.delete(groups).where(eq(groups.id, id))
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error('❌ Error deleting group:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
