@@ -11,7 +11,6 @@ export default function StudentLessonsPage() {
 
   useEffect(() => {
     checkUser()
-    fetchLessons()
   }, [])
 
   const checkUser = async () => {
@@ -20,25 +19,46 @@ export default function StudentLessonsPage() {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Student') {
+      router.push('/unauthorized')
+      return
+    }
+    await fetchLessons(parsed.id)
   }
 
-  const fetchLessons = async () => {
+  const fetchLessons = async (studentId) => {
     try {
-      const response = await fetch('/api/lessons')
+      // ✅ جلب الشروح الخاصة بمجموعات الطالب
+      const response = await fetch(`/api/student/lessons?student_id=${studentId}`)
       const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      // تصفية الدروس المنشورة فقط
-      const publishedLessons = data.filter(l => l.is_published === true)
-      setLessons(publishedLessons || [])
+      setLessons(data || [])
     } catch (error) {
       console.error('Error fetching lessons:', error)
       setError(error.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ✅ فتح الملف بـ Signed URL
+  const handlePreview = async (lessonId) => {
+    try {
+      const res = await fetch(`/api/files/${lessonId}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      setError(error.message)
     }
   }
 
@@ -52,7 +72,6 @@ export default function StudentLessonsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -60,7 +79,7 @@ export default function StudentLessonsPage() {
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-extrabold">دروسي</h1>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/student')}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
             >
@@ -70,11 +89,10 @@ export default function StudentLessonsPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
-            {error}
+            ❌ {error}
           </div>
         )}
 
@@ -103,18 +121,16 @@ export default function StudentLessonsPage() {
                   <h3 className="text-xl font-extrabold text-gray-900 mb-2">{lesson.title}</h3>
                   <p className="text-gray-600 text-sm font-bold mb-3">{lesson.description}</p>
                   <div className="flex items-center justify-between text-xs text-gray-400 font-bold">
-                    <span>📅 {new Date(lesson.created_at).toLocaleDateString('ar-EG')}</span>
-                    <span>👤 {lesson.created_by_name || 'غير معروف'}</span>
+                    <span>📅 {new Date(lesson.assigned_at || lesson.created_at).toLocaleDateString('ar-EG')}</span>
+                    <span>👤 {lesson.creator_name || 'الإدارة'}</span>
                   </div>
                   {lesson.content_url && (
-                    <a 
-                      href={lesson.content_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => handlePreview(lesson.id)}
                       className="mt-3 inline-block text-blue-600 hover:text-blue-800 text-sm font-extrabold"
                     >
                       🔗 عرض الملف
-                    </a>
+                    </button>
                   )}
                   {lesson.content && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700 font-bold max-h-32 overflow-y-auto">
