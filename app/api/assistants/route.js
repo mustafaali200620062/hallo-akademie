@@ -1,30 +1,21 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { profiles, roles } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // جلب دور المساعد
+    // ✅ جلب دور المساعد
     const assistantRole = await db
       .select()
       .from(roles)
       .where(eq(roles.name, 'Assistent'))
-      .get()
 
-    if (!assistantRole) {
+    if (!assistantRole || assistantRole.length === 0) {
       return NextResponse.json([])
     }
 
-    // جلب جميع المساعدين
+    // ✅ جلب جميع المساعدين
     const assistants = await db
       .select({
         id: profiles.id,
@@ -32,11 +23,12 @@ export async function GET() {
         email: profiles.email,
         phone: profiles.phone,
         is_active: profiles.is_active,
+        is_approved: profiles.is_approved,
         created_at: profiles.created_at,
       })
       .from(profiles)
-      .where(eq(profiles.role_id, assistantRole.id))
-      .all()
+      .where(eq(profiles.role_id, assistantRole[0].id))
+      .orderBy(asc(profiles.full_name))
 
     return NextResponse.json(assistants || [])
   } catch (error) {
