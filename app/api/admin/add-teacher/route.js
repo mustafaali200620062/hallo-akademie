@@ -33,12 +33,13 @@ export async function POST(request) {
 
     // ✅ إضافة المدرس
     await db.insert(profiles).values({
+      id: crypto.randomUUID(),
       email,
       full_name,
       role_id: teacherRole[0].id,
       is_active: true,
       is_approved: true,
-      created_at: new Date().toISOString(),
+      created_at: new Date(),
     })
 
     return NextResponse.json({ 
