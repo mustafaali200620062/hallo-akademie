@@ -12,21 +12,25 @@ export default function StudentExamsPage() {
 
   useEffect(() => {
     checkUser()
-    fetchExams()
   }, [])
 
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Student') {
+      router.push('/unauthorized')
+      return
+    }
+    await fetchExams(parsed.id)
   }
 
-  const fetchExams = async () => {
+  const fetchExams = async (studentId) => {
     try {
-      const response = await fetch('/api/student/exams')
+      const response = await fetch(`/api/student/exams?student_id=${studentId}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -44,31 +48,30 @@ export default function StudentExamsPage() {
 
   const getStatusBadge = (attempt) => {
     if (!attempt || attempt.status === 'not_started') {
-      return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">متاح</span>
+      return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">متاح</span>
     }
     if (attempt.status === 'in_progress') {
-      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">قيد الحل</span>
+      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">قيد الحل</span>
     }
     if (attempt.status === 'submitted') {
-      return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">تم التسليم</span>
+      return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">تم التسليم</span>
     }
     if (attempt.status === 'locked') {
-      return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">مغلق</span>
+      return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">مغلق</span>
     }
-    return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">غير معروف</span>
+    return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold">غير معروف</span>
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-green-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -76,7 +79,7 @@ export default function StudentExamsPage() {
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-bold">الاختبارات المتاحة</h1>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/student')}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors"
             >
@@ -86,11 +89,10 @@ export default function StudentExamsPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            ❌ {error}
           </div>
         )}
 
@@ -98,21 +100,21 @@ export default function StudentExamsPage() {
           {exams.length === 0 ? (
             <div className="col-span-full bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
               <div className="text-4xl mb-2">📝</div>
-              <p>لا توجد اختبارات متاحة لك حالياً</p>
+              <p className="font-bold">لا توجد اختبارات متاحة لك حالياً</p>
             </div>
           ) : (
             exams.map((exam) => (
               <div key={exam.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                      {exam.levels?.code}
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                      {exam.level_code}
                     </span>
                     {getStatusBadge(exam.attempt)}
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{exam.title}</h3>
                   <p className="text-gray-600 text-sm mb-3">{exam.description}</p>
-                  <div className="space-y-1 text-sm text-gray-500">
+                  <div className="space-y-1 text-sm text-gray-500 font-bold">
                     <p>⏱️ المدة: {exam.duration_minutes} دقيقة</p>
                     <p>📊 الدرجة: {exam.total_points}</p>
                     <p>📅 {new Date(exam.starts_at).toLocaleDateString('ar-EG')}</p>
@@ -123,23 +125,23 @@ export default function StudentExamsPage() {
                     </div>
                   )}
                   {exam.attempt?.status === 'not_started' && (
-                    <Link 
+                    <Link
                       href={`/student/exams/${exam.id}`}
-                      className="mt-4 block text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      className="mt-4 block text-center bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
                     >
                       بدء الاختبار
                     </Link>
                   )}
                   {exam.attempt?.status === 'in_progress' && (
-                    <Link 
+                    <Link
                       href={`/student/exams/${exam.id}`}
-                      className="mt-4 block text-center bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+                      className="mt-4 block text-center bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700 transition-colors"
                     >
                       استكمال الاختبار
                     </Link>
                   )}
                   {exam.attempt?.status === 'locked' && (
-                    <div className="mt-4 text-center text-red-600 font-medium">
+                    <div className="mt-4 text-center text-red-600 font-bold">
                       ⛔ تم قفل الاختبار
                     </div>
                   )}
