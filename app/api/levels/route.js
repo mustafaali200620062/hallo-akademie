@@ -1,39 +1,18 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { db } from '@/db'
+import { levels } from '@/db/schema'
+import { asc } from 'drizzle-orm'
 
-export async function GET(request) {
+export async function GET() {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const allLevels = await db
+      .select()
+      .from(levels)
+      .orderBy(asc(levels.code))
 
-    const { data: levels, error } = await supabase
-      .from('levels')
-      .select('*')
-      .order('code')
-
-    if (error) throw error
-
-    return NextResponse.json(levels || [])
+    return NextResponse.json(allLevels || [])
   } catch (error) {
+    console.error('❌ Error fetching levels:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
