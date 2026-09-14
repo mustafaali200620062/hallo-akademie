@@ -1,145 +1,98 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { db } from '@/db'
+import { lessons, levels, groups, profiles } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
+// ✅ جلب جميع الملفات
 export async function GET(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const groupId = searchParams.get('groupId')
+    const levelId = searchParams.get('levelId')
 
-    let query = supabase
-      .from('lessons')
-      .select(`
-        *,
-        levels (code, title),
-        groups (name),
-        creator:profiles!created_by (id, full_name)
-      `)
-      .order('created_at', { ascending: false })
+    let query = db
+      .select({
+        id: lessons.id,
+        title: lessons.title,
+        description: lessons.description,
+        content: lessons.content,
+        content_url: lessons.content_url,
+        content_type: lessons.content_type,
+        is_published: lessons.is_published,
+        group_id: lessons.group_id,
+        level_id: lessons.level_id,
+        created_by: lessons.created_by,
+        created_at: lessons.created_at,
+        level_code: levels.code,
+        level_title: levels.title,
+        group_name: groups.name,
+        creator_name: profiles.full_name,
+      })
+      .from(lessons)
+      .leftJoin(levels, eq(lessons.level_id, levels.id))
+      .leftJoin(groups, eq(lessons.group_id, groups.id))
+      .leftJoin(profiles, eq(lessons.created_by, profiles.id))
+      .orderBy(desc(lessons.created_at))
 
     if (groupId) {
-      query = query.eq('group_id', groupId)
+      query = query.where(eq(lessons.group_id, groupId))
+    } else if (levelId) {
+      query = query.where(eq(lessons.level_id, levelId))
     }
 
-    const { data: lessons, error } = await query
+    const allLessons = await query
 
-    if (error) throw error
-
-    return NextResponse.json(lessons || [])
+    return NextResponse.json(allLessons || [])
   } catch (error) {
-    console.error('Error in /api/lessons:', error)
+    console.error('❌ Error fetching lessons:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ إضافة ملف / شرح جديد
 export async function POST(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { title, description, content, content_url, content_type, group_id, level_id, is_published } = body
+    const {
+      title,
+      description,
+      content,
+      content_url,
+      content_type,
+      group_id,
+      level_id,
+      is_published,
+      created_by
+    } = body
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Lehrer'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!title) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
-    const { data: lesson, error } = await supabase
-      .from('lessons')
-      .insert({
-        title,
-        description: description || '',
-        content: content || '',
-        content_url: content_url || '',
-        content_type: content_type || 'text',
-        group_id,
-        level_id,
-        created_by: session.user.id,
-        is_published: is_published || false,
-        published_at: is_published ? new Date().toISOString() : null
-      })
-      .select()
-      .single()
+    const [newLesson] = await db.insert(lessons).values({
+      id: crypto.randomUUID(),
+      title,
+      description: description || '',
+      content: content || '',
+      content_url: content_url || '',
+      content_type: content_type || 'text',
+      group_id: group_id || null,
+      level_id: level_id || null,
+      created_by: created_by || null,
+      is_published: is_published || false,
+      created_at: new Date(),
+    }).returning()
 
-    if (error) throw error
-
-    return NextResponse.json(lesson)
+    return NextResponse.json({ success: true, lesson: newLesson })
   } catch (error) {
-    console.error('Error in /api/lessons POST:', error)
+    console.error('❌ Error creating lesson:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ حذف ملف
 export async function DELETE(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -147,26 +100,11 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Lesson ID required' }, { status: 400 })
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Lehrer'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const { error } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await db.delete(lessons).where(eq(lessons.id, id))
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error in /api/lessons DELETE:', error)
+    console.error('❌ Error deleting lesson:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

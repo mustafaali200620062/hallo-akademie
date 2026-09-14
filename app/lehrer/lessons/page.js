@@ -21,10 +21,10 @@ export default function LehrerLessonsPage() {
     is_published: false
   })
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     checkUser()
-    fetchData()
   }, [])
 
   const checkUser = async () => {
@@ -33,29 +33,33 @@ export default function LehrerLessonsPage() {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Lehrer' && parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
+      return
+    }
+    await fetchData(parsed.id)
   }
 
-  const fetchData = async () => {
+  const fetchData = async (teacherId) => {
     try {
-      const userData = JSON.parse(localStorage.getItem('user'))
-      
-      // جلب المجموعات التي يدرسها المدرس
+      // ✅ جلب مجموعات المدرس
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       if (groupsRes.ok) {
-        const teacherGroups = groupsData.filter(g => g.teacher_id === userData?.id)
+        const teacherGroups = groupsData.filter(g => g.teacher_id === teacherId)
         setGroups(teacherGroups || [])
       }
 
-      // جلب الشروح التي أنشأها المدرس
+      // ✅ جلب الشروح
       const lessonsRes = await fetch('/api/lessons')
       const lessonsData = await lessonsRes.json()
       if (lessonsRes.ok) {
-        const teacherLessons = lessonsData.filter(l => l.created_by === userData?.id)
+        const teacherLessons = lessonsData.filter(l => l.created_by === teacherId)
         setLessons(teacherLessons || [])
       }
 
-      // جلب المستويات
+      // ✅ جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
@@ -68,15 +72,22 @@ export default function LehrerLessonsPage() {
     }
   }
 
+  // ✅ إضافة شرح يدوي
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
 
     try {
+      const userData = JSON.parse(localStorage.getItem('user'))
+
       const response = await fetch('/api/lessons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          created_by: userData.id,
+        })
       })
 
       const data = await response.json()
@@ -85,7 +96,8 @@ export default function LehrerLessonsPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      setSuccess('✅ تم إضافة الشرح بنجاح!')
+      await fetchData(userData.id)
       setShowForm(false)
       setFormData({
         title: '',
@@ -103,6 +115,7 @@ export default function LehrerLessonsPage() {
     }
   }
 
+  // ✅ حذف شرح
   const handleDelete = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الشرح؟')) return
 
@@ -116,7 +129,24 @@ export default function LehrerLessonsPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      const userData = JSON.parse(localStorage.getItem('user'))
+      await fetchData(userData.id)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
+  // ✅ معاينة ملف
+  const handlePreview = async (lessonId) => {
+    try {
+      const res = await fetch(`/api/files/${lessonId}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      window.open(data.url, '_blank', 'noopener,noreferrer')
     } catch (error) {
       setError(error.message)
     }
@@ -125,22 +155,21 @@ export default function LehrerLessonsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-purple-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
-              <h1 className="text-2xl font-bold">إدارة الشروح</h1>
+              <h1 className="text-2xl font-bold">الشرح</h1>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/lehrer')}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors"
             >
@@ -150,34 +179,39 @@ export default function LehrerLessonsPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            ❌ {error}
           </div>
         )}
 
-        {/* زر الإضافة */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            {success}
+          </div>
+        )}
+
         <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600">إجمالي الشروح: <span className="font-bold">{lessons.length}</span></p>
+          <p className="text-gray-600 font-bold">
+            إجمالي الشروح: <span className="font-extrabold">{lessons.length}</span>
+          </p>
           {groups.length > 0 && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors"
             >
               {showForm ? '× إلغاء' : '+ إضافة شرح جديد'}
             </button>
           )}
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && groups.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">إضافة شرح جديد</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">عنوان الشرح</label>
+                <label className="block text-sm font-bold text-gray-700">عنوان الشرح</label>
                 <input
                   type="text"
                   required
@@ -189,7 +223,7 @@ export default function LehrerLessonsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">الوصف</label>
+                <label className="block text-sm font-bold text-gray-700">الوصف</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -200,7 +234,7 @@ export default function LehrerLessonsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">المحتوى (نص)</label>
+                <label className="block text-sm font-bold text-gray-700">المحتوى (نص)</label>
                 <textarea
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
@@ -212,7 +246,7 @@ export default function LehrerLessonsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">نوع المحتوى</label>
+                  <label className="block text-sm font-bold text-gray-700">نوع المحتوى</label>
                   <select
                     value={formData.content_type}
                     onChange={(e) => setFormData({ ...formData, content_type: e.target.value })}
@@ -227,7 +261,7 @@ export default function LehrerLessonsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">رابط الملف</label>
+                  <label className="block text-sm font-bold text-gray-700">رابط الملف (اختياري)</label>
                   <input
                     type="url"
                     value={formData.content_url}
@@ -240,14 +274,14 @@ export default function LehrerLessonsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">المجموعة</label>
+                  <label className="block text-sm font-bold text-gray-700">المجموعة</label>
                   <select
                     required
                     value={formData.group_id}
                     onChange={(e) => {
                       const group = groups.find(g => g.id === e.target.value)
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         group_id: e.target.value,
                         level_id: group?.level_id || ''
                       })
@@ -264,7 +298,7 @@ export default function LehrerLessonsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">المستوى</label>
+                  <label className="block text-sm font-bold text-gray-700">المستوى</label>
                   <select
                     required
                     value={formData.level_id}
@@ -288,12 +322,12 @@ export default function LehrerLessonsPage() {
                   onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
                   className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                 />
-                <label className="text-sm font-medium text-gray-700">نشر الشرح فوراً</label>
+                <label className="text-sm font-bold text-gray-700">نشر الشرح فوراً</label>
               </div>
 
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
               >
                 ✅ إضافة الشرح
               </button>
@@ -302,29 +336,28 @@ export default function LehrerLessonsPage() {
         )}
 
         {groups.length === 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4 font-bold">
             ⚠️ لا توجد مجموعات مخصصة لك. لا يمكنك إنشاء شروح.
           </div>
         )}
 
-        {/* قائمة الشروح */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">العنوان</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المجموعة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المستوى</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">النوع</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">العنوان</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المجموعة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المستوى</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">النوع</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الحالة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {lessons.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">📚</div>
                       لا توجد شروح
                     </td>
@@ -332,15 +365,15 @@ export default function LehrerLessonsPage() {
                 ) : (
                   lessons.map((lesson) => (
                     <tr key={lesson.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">{lesson.title}</td>
-                      <td className="px-6 py-4 text-gray-600">{lesson.group_name || '-'}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{lesson.title}</td>
+                      <td className="px-6 py-4 text-gray-600 font-bold">{lesson.group_name || '-'}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
                           {lesson.level_code}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold">
                           {lesson.content_type === 'text' ? 'نص' :
                            lesson.content_type === 'pdf' ? 'PDF' :
                            lesson.content_type === 'image' ? 'صورة' :
@@ -349,14 +382,22 @@ export default function LehrerLessonsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs ${lesson.is_published ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${lesson.is_published ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           {lesson.is_published ? 'منشور' : 'مسودة'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        {lesson.content_url && (
+                          <button
+                            onClick={() => handlePreview(lesson.id)}
+                            className="text-blue-600 hover:text-blue-800 font-bold transition-colors mr-3"
+                          >
+                            👁️ معاينة
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(lesson.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
                         >
                           🗑️ حذف
                         </button>
