@@ -5,7 +5,6 @@ import { eq, asc } from 'drizzle-orm'
 
 export async function GET() {
   try {
-    // ✅ جلب دور المدرس
     const teacherRole = await db
       .select({ id: roles.id })
       .from(roles)
@@ -15,13 +14,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Teacher role not found' }, { status: 404 })
     }
 
-    // ✅ جلب المدرسين
     const teachers = await db
       .select({
         id: profiles.id,
         full_name: profiles.full_name,
         email: profiles.email,
         phone: profiles.phone,
+        password: profiles.password,
         is_active: profiles.is_active,
         is_approved: profiles.is_approved,
         created_at: profiles.created_at,

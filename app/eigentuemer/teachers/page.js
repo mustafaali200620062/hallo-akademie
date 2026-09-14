@@ -20,7 +20,6 @@ export default function TeachersManagementPage() {
     fetchTeachers()
   }, [])
 
-  // ✅ التعديل هنا
   const checkUser = async () => {
     const userData = localStorage.getItem('user')
     if (!userData) {
@@ -69,7 +68,7 @@ export default function TeachersManagementPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      setSuccess('✅ تم إضافة المدرس بنجاح!')
+      setSuccess('✅ تم إضافة المدرس بنجاح! كلمة المرور الافتراضية: 123123')
       setShowForm(false)
       setFormData({ email: '', full_name: '' })
       await fetchTeachers()
@@ -127,22 +126,22 @@ export default function TeachersManagementPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            ❌ {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
             {success}
           </div>
         )}
 
         <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600">عدد المدرسين: <span className="font-bold">{teachers.length}</span></p>
+          <p className="text-gray-600 font-bold">عدد المدرسين: <span className="font-extrabold">{teachers.length}</span></p>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors"
           >
             {showForm ? '× إلغاء' : '+ إضافة مدرس جديد'}
           </button>
@@ -153,7 +152,7 @@ export default function TeachersManagementPage() {
             <h2 className="text-xl font-bold mb-4">إضافة مدرس جديد</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">البريد الإلكتروني</label>
+                <label className="block text-sm font-bold text-gray-700">البريد الإلكتروني</label>
                 <input
                   type="email"
                   required
@@ -162,11 +161,11 @@ export default function TeachersManagementPage() {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
                   placeholder="teacher@example.com"
                 />
-                <p className="text-xs text-gray-500 mt-1">سيتم إرسال دعوة للتسجيل إلى هذا البريد</p>
+                <p className="text-xs text-gray-500 mt-1">كلمة المرور الافتراضية: 123123</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">الاسم الكامل</label>
+                <label className="block text-sm font-bold text-gray-700">الاسم الكامل</label>
                 <input
                   type="text"
                   required
@@ -179,7 +178,7 @@ export default function TeachersManagementPage() {
 
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
               >
                 ✅ إضافة المدرس
               </button>
@@ -192,16 +191,17 @@ export default function TeachersManagementPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الاسم</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">البريد الإلكتروني</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">تاريخ التسجيل</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الاسم</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">البريد الإلكتروني</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">كلمة المرور</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">تاريخ التسجيل</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {teachers.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">👨‍🏫</div>
                       لا يوجد مدرسين
                     </td>
@@ -209,15 +209,20 @@ export default function TeachersManagementPage() {
                 ) : (
                   teachers.map((teacher) => (
                     <tr key={teacher.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">{teacher.full_name}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{teacher.full_name}</td>
                       <td className="px-6 py-4 text-gray-600">{teacher.email || 'غير متوفر'}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono text-sm font-bold">
+                          {teacher.password || '123123'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-gray-600">
                         {new Date(teacher.created_at).toLocaleDateString('ar-EG')}
                       </td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleDelete(teacher.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
                         >
                           🗑️ حذف
                         </button>

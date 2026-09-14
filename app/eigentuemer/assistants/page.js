@@ -20,7 +20,6 @@ export default function AssistantsManagementPage() {
     fetchAssistants()
   }, [])
 
-  // ✅ التعديل هنا
   const checkUser = async () => {
     const userData = localStorage.getItem('user')
     if (!userData) {
@@ -69,7 +68,7 @@ export default function AssistantsManagementPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      setSuccess('✅ تم إضافة المساعد بنجاح!')
+      setSuccess('✅ تم إضافة المساعد بنجاح! كلمة المرور الافتراضية: 123123')
       setShowForm(false)
       setFormData({ email: '', full_name: '' })
       await fetchAssistants()
@@ -130,7 +129,7 @@ export default function AssistantsManagementPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
-            {error}
+            ❌ {error}
           </div>
         )}
 
@@ -166,7 +165,7 @@ export default function AssistantsManagementPage() {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-bold"
                   placeholder="assistant@example.com"
                 />
-                <p className="text-xs text-gray-500 font-bold mt-1">سيتم إرسال دعوة للتسجيل إلى هذا البريد</p>
+                <p className="text-xs text-gray-500 font-bold mt-1">كلمة المرور الافتراضية: 123123</p>
               </div>
 
               <div>
@@ -199,6 +198,7 @@ export default function AssistantsManagementPage() {
                 <tr>
                   <th className="px-6 py-3 text-right text-xs font-black text-gray-700 uppercase tracking-wider">الاسم</th>
                   <th className="px-6 py-3 text-right text-xs font-black text-gray-700 uppercase tracking-wider">البريد الإلكتروني</th>
+                  <th className="px-6 py-3 text-right text-xs font-black text-gray-700 uppercase tracking-wider">كلمة المرور</th>
                   <th className="px-6 py-3 text-right text-xs font-black text-gray-700 uppercase tracking-wider">تاريخ التسجيل</th>
                   <th className="px-6 py-3 text-right text-xs font-black text-gray-700 uppercase tracking-wider">الإجراءات</th>
                 </tr>
@@ -206,7 +206,7 @@ export default function AssistantsManagementPage() {
               <tbody className="divide-y divide-gray-200">
                 {assistants.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500 font-bold">
+                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">🤝</div>
                       لا يوجد مساعدين
                     </td>
@@ -216,6 +216,11 @@ export default function AssistantsManagementPage() {
                     <tr key={assistant.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 font-extrabold text-gray-900">{assistant.full_name}</td>
                       <td className="px-6 py-4 text-gray-600 font-bold">{assistant.email || 'غير متوفر'}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono text-sm font-bold">
+                          {assistant.password || '123123'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-gray-600 font-bold">
                         {new Date(assistant.created_at).toLocaleDateString('ar-EG')}
                       </td>
