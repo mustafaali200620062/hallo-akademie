@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm'
 
 export async function POST(request) {
   try {
-    const { email, full_name } = await request.json()
+    const { email, full_name, password } = await request.json()
 
     if (!email || !full_name) {
       return NextResponse.json({ error: 'Email and full name are required' }, { status: 400 })
@@ -31,11 +31,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 400 })
     }
 
-    // ✅ إضافة المساعد
+    // ✅ إضافة المساعد (مع كلمة المرور الافتراضية 123123)
     await db.insert(profiles).values({
       id: crypto.randomUUID(),
       email,
       full_name,
+      password: password || '123123',
       role_id: assistantRole[0].id,
       is_active: true,
       is_approved: true,
@@ -44,7 +45,7 @@ export async function POST(request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Assistant added successfully' 
+      message: 'Assistant added successfully. Default password: 123123' 
     })
   } catch (error) {
     console.error('❌ Error adding assistant:', error)
