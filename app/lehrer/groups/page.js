@@ -7,8 +7,11 @@ export default function LehrerGroupsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState([])
-  const [groupStudents, setGroupStudents] = useState({})
+  const [selectedGroup, setSelectedGroup] = useState(null)
+  const [groupStudents, setGroupStudents] = useState([])
+  const [groupLessons, setGroupLessons] = useState([])
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     checkUser()
@@ -25,38 +28,97 @@ export default function LehrerGroupsPage() {
       router.push('/unauthorized')
       return
     }
-    await fetchData(parsed.id)
+    await fetchGroups(parsed.id)
   }
 
-  const fetchData = async (teacherId) => {
+  const fetchGroups = async (teacherId) => {
     try {
-      // ✅ جلب جميع المجموعات
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
 
       if (groupsRes.ok) {
-        // ✅ تصفية المجموعات الخاصة بالمدرس
         const teacherGroups = groupsData.filter(g => g.teacher_id === teacherId)
         setGroups(teacherGroups || [])
-
-        // ✅ جلب طلاب كل مجموعة
-        const studentsMap = {}
-        for (const group of teacherGroups) {
-          const studentsRes = await fetch(`/api/groups/students?group_id=${group.id}`)
-          const studentsData = await studentsRes.json()
-          if (studentsRes.ok) {
-            studentsMap[group.id] = studentsData || []
-          }
-        }
-        setGroupStudents(studentsMap)
       }
-
     } catch (error) {
-      console.error('Error fetching data:', error)
-      setError('حدث خطأ في جلب البيانات')
+      console.error('Error fetching groups:', error)
+      setError('حدث خطأ في جلب المجموعات')
     } finally {
       setLoading(false)
     }
+  }
+
+  // ✅ فتح تفاصيل المجموعة
+  const openGroupDetails = async (group) => {
+    setSelectedGroup(group)
+
+    // جلب الطلاب
+    try {
+      const studentsRes = await fetch(`/api/groups/students?group_id=${group.id}`)
+      const studentsData = await studentsRes.json()
+      if (studentsRes.ok) setGroupStudents(studentsData || [])
+    } catch (error) {
+      console.error('Error fetching students:', error)
+    }
+
+    // جلب الشروح
+    try {
+      const lessonsRes = await fetch(`/api/groups/lessons?group_id=${group.id}`)
+      const lessonsData = await lessonsRes.json()
+      if (lessonsRes.ok) setGroupLessons(lessonsData || [])
+    } catch (error) {
+      console.error('Error fetching lessons:', error)
+    }
+  }
+
+  // ✅ حذف شرح من المجموعة
+  const handleDeleteLesson = async (lessonId) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الشرح من المجموعة؟')) return
+
+    try {
+      const res = await fetch(`/api/groups/lessons?lesson_id=${lessonId}&group_id=${selectedGroup.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      setSuccess('✅ تم حذف الشرح من المجموعة')
+      await openGroupDetails(selectedGroup)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
+  // ✅ معاينة شرح
+  const handlePreview = async (lessonId) => {
+    try {
+      const res = await fetch(`/api/files/${lessonId}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   if (loading) {
@@ -93,56 +155,140 @@ export default function LehrerGroupsPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6">
-          {groups.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-lg p-12 text-center text-gray-500">
-              <div className="text-4xl mb-4">📭</div>
-              <p className="text-lg font-bold">لا توجد مجموعات مخصصة لك</p>
-              <p className="text-sm">سيتم إضافتك إلى مجموعات من قبل الإدارة</p>
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            {success}
+          </div>
+        )}
+
+        {/* قائمة المجموعات */}
+        {!selectedGroup && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.length === 0 ? (
+              <div className="col-span-full bg-white rounded-xl shadow-lg p-12 text-center text-gray-500">
+                <div className="text-4xl mb-4">📭</div>
+                <p className="text-lg font-bold">لا توجد مجموعات مخصصة لك</p>
+              </div>
+            ) : (
+              groups.map((group) => (
+                <button
+                  key={group.id}
+                  onClick={() => openGroupDetails(group)}
+                  className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all text-right hover:scale-[1.02] border-2 border-transparent hover:border-red-400"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <h2 className="text-xl font-bold text-gray-900">{group.name}</h2>
+                    <span className="text-2xl">📚</span>
+                  </div>
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+                    {group.level_code} - {group.level_title}
+                  </span>
+                  <p className="text-gray-600 text-sm mt-3">
+                    {group.description || 'لا يوجد وصف'}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    اضغط لعرض التفاصيل ←
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* تفاصيل المجموعة */}
+        {selectedGroup && (
+          <div>
+            <button
+              onClick={() => setSelectedGroup(null)}
+              className="mb-4 bg-gray-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-700 transition-colors"
+            >
+              ← العودة للمجموعات
+            </button>
+
+            {/* معلومات المجموعة */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">{selectedGroup.name}</h2>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+                  {selectedGroup.level_code} - {selectedGroup.level_title}
+                </span>
+              </div>
+              <p className="text-gray-600 mt-2">{selectedGroup.description || 'لا يوجد وصف'}</p>
             </div>
-          ) : (
-            groups.map((group) => {
-              const students = groupStudents[group.id] || []
-              return (
-                <div key={group.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-bold text-gray-900">{group.name}</h2>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
-                        {group.level_code} - {group.level_title}
+
+            {/* الطلاب */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">
+                👨‍🎓 الطلاب ({groupStudents.length})
+              </h3>
+              {groupStudents.length === 0 ? (
+                <p className="text-gray-500 font-bold text-center py-4">لا يوجد طلاب</p>
+              ) : (
+                <div className="space-y-2">
+                  {groupStudents.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-gray-900">{student.full_name}</span>
+                        <span className="text-sm text-gray-500 font-bold" dir="ltr">
+                          📱 {student.phone || 'بدون رقم'}
+                        </span>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${student.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                        {student.is_active ? '🟢 نشط' : '🔴 غير نشط'}
                       </span>
                     </div>
-                    <p className="text-gray-600 mt-1">{group.description || 'لا يوجد وصف'}</p>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-sm font-bold text-gray-600 mb-3">
-                      👨‍🎓 الطلاب ({students.length})
-                    </h3>
-                    <div className="space-y-2">
-                      {students.length === 0 ? (
-                        <p className="text-gray-500 text-sm font-bold">لا يوجد طلاب في هذه المجموعة</p>
-                      ) : (
-                        students.map((student) => (
-                          <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-gray-900">{student.full_name}</span>
-                              <span className="text-sm text-gray-500 font-bold" dir="ltr">
-                                📱 {student.phone || 'رقم غير متوفر'}
-                              </span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${student.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
-                                {student.is_active ? '🟢 نشط' : '🔴 غير نشط'}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              )
-            })
-          )}
-        </div>
+              )}
+            </div>
+
+            {/* الشروح */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">
+                📖 الشروح ({groupLessons.length})
+              </h3>
+              {groupLessons.length === 0 ? (
+                <p className="text-gray-500 font-bold text-center py-4">لا توجد شروح في هذه المجموعة</p>
+              ) : (
+                <div className="space-y-3">
+                  {groupLessons.map((lesson) => (
+                    <div key={lesson.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-gray-900">{lesson.title}</h4>
+                          {lesson.description && (
+                            <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 font-bold">
+                            <span>📅 {formatDate(lesson.assigned_at || lesson.created_at)}</span>
+                            <span>👤 {lesson.creator_name || 'الإدارة'}</span>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                              {lesson.level_code}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handlePreview(lesson.id)}
+                            className="text-blue-600 hover:text-blue-800 font-bold text-sm px-3 py-1 bg-blue-50 rounded-lg"
+                          >
+                            👁️ معاينة
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLesson(lesson.id)}
+                            className="text-red-600 hover:text-red-800 font-bold text-sm px-3 py-1 bg-red-50 rounded-lg"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
