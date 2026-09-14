@@ -29,7 +29,6 @@ export default function StudentLessonsPage() {
 
   const fetchLessons = async (studentId) => {
     try {
-      // ✅ جلب الشروح الخاصة بمجموعات الطالب
       const response = await fetch(`/api/student/lessons?student_id=${studentId}`)
       const data = await response.json()
 
@@ -43,22 +42,6 @@ export default function StudentLessonsPage() {
       setError(error.message)
     } finally {
       setLoading(false)
-    }
-  }
-
-  // ✅ فتح الملف بـ Signed URL
-  const handlePreview = async (lessonId) => {
-    try {
-      const res = await fetch(`/api/files/${lessonId}`)
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'حدث خطأ')
-      }
-
-      window.open(data.url, '_blank', 'noopener,noreferrer')
-    } catch (error) {
-      setError(error.message)
     }
   }
 
@@ -126,7 +109,7 @@ export default function StudentLessonsPage() {
                   </div>
                   {lesson.content_url && (
                     <button
-                      onClick={() => handlePreview(lesson.id)}
+                      onClick={() => router.push(`/student/lessons/view?id=${lesson.id}`)}
                       className="mt-3 inline-block text-blue-600 hover:text-blue-800 text-sm font-extrabold"
                     >
                       🔗 عرض الملف

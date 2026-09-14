@@ -37,6 +37,7 @@ export async function GET(request, { params }) {
     return NextResponse.json({
       success: true,
       url: signedUrl,
+      title: file.title,
       expiresIn: 3600,
     })
   } catch (error) {
