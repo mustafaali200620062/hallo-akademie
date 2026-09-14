@@ -2,6 +2,12 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
+
+// ✅ إعداد PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 function ViewerContent() {
   const router = useRouter()
@@ -12,15 +18,14 @@ function ViewerContent() {
   const [fileUrl, setFileUrl] = useState(null)
   const [title, setTitle] = useState('')
   const [error, setError] = useState(null)
+  const [numPages, setNumPages] = useState(null)
 
   useEffect(() => {
-    // ✅ منع كليك يمين
     const handleContextMenu = (e) => {
       e.preventDefault()
       return false
     }
 
-    // ✅ منع Ctrl+S / Ctrl+P / Ctrl+U / Ctrl+Shift+I / F12 / Ctrl+C / Ctrl+A
     const handleKeyDown = (e) => {
       if (
         (e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u')) ||
@@ -34,7 +39,6 @@ function ViewerContent() {
       }
     }
 
-    // ✅ منع تحديد النص
     const handleSelectStart = (e) => {
       e.preventDefault()
       return false
@@ -77,6 +81,10 @@ function ViewerContent() {
     }
   }
 
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -103,16 +111,18 @@ function ViewerContent() {
     )
   }
 
-  // ✅ استخدام Google Docs Viewer لعرض PDF بدون أدوات تحميل
-  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`
-
   return (
-    <div className="min-h-screen bg-black select-none">
+    <div className="min-h-screen bg-gray-900 select-none">
       {/* شريط علوي */}
-      <div className="bg-gray-900 text-white px-4 py-3 flex justify-between items-center shadow-lg">
+      <div className="bg-gray-900 text-white px-4 py-3 flex justify-between items-center shadow-lg border-b border-gray-700">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           <h1 className="font-bold text-lg">{title}</h1>
+          {numPages && (
+            <span className="text-xs bg-gray-700 px-2 py-1 rounded">
+              {numPages} صفحة
+            </span>
+          )}
         </div>
         <button
           onClick={() => router.push('/student/lessons')}
@@ -123,19 +133,28 @@ function ViewerContent() {
       </div>
 
       {/* عرض الملف */}
-      <div className="relative w-full" style={{ height: 'calc(100vh - 60px)' }}>
-        <iframe
-          src={viewerUrl}
-          className="w-full h-full border-0"
-          title={title}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-        />
-
-        {/* طبقة شفافة لمنع التفاعل المباشر */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'transparent' }}
-        />
+      <div className="flex flex-col items-center py-6 overflow-auto" style={{ height: 'calc(100vh - 60px)' }}>
+        <Document
+          file={fileUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          loading={<div className="text-white text-xl">جاري تحميل المستند...</div>}
+          error={<div className="text-red-400 text-xl">فشل تحميل المستند</div>}
+          options={{
+            cMapUrl: '/cmaps/',
+            cMapPacked: true,
+          }}
+        >
+          {Array.from(new Array(numPages), (el, index) => (
+            <div key={`page_${index + 1}`} className="mb-4 shadow-2xl">
+              <Page
+                pageNumber={index + 1}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                width={Math.min(window.innerWidth - 40, 800)}
+              />
+            </div>
+          ))}
+        </Document>
       </div>
 
       <style jsx global>{`
@@ -147,16 +166,18 @@ function ViewerContent() {
           -webkit-touch-callout: none;
         }
 
-        iframe {
-          pointer-events: auto;
-        }
-
-        img, iframe {
+        img, canvas {
           -webkit-user-drag: none;
           -khtml-user-drag: none;
           -moz-user-drag: none;
           -o-user-drag: none;
           user-drag: none;
+        }
+
+        /* ✅ إخفاء أزرار التحميل والطباعة */
+        .react-pdf__Page__annotations,
+        .annotationLayer {
+          display: none !important;
         }
       `}</style>
     </div>
