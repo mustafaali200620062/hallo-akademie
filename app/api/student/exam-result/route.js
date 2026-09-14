@@ -1,5 +1,3 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { examAttempts, studentAnswers, examQuestions, exams, levels, groups } from '@/db/schema'
@@ -7,35 +5,31 @@ import { eq, and } from 'drizzle-orm'
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const examId = searchParams.get('examId')
+    const studentId = searchParams.get('student_id')
 
-    if (!examId) {
-      return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
+    if (!examId || !studentId) {
+      return NextResponse.json({ error: 'Exam ID and Student ID required' }, { status: 400 })
     }
 
-    // جلب محاولة الطالب
-    const attempt = await db
+    // ✅ جلب محاولة الطالب
+    const attempts = await db
       .select()
       .from(examAttempts)
       .where(and(
         eq(examAttempts.exam_id, examId),
-        eq(examAttempts.student_id, session.user.id)
+        eq(examAttempts.student_id, studentId)
       ))
-      .get()
 
-    if (!attempt) {
+    if (!attempts || attempts.length === 0) {
       return NextResponse.json({ error: 'Attempt not found' }, { status: 404 })
     }
 
-    // جلب تفاصيل الاختبار
-    const exam = await db
+    const attempt = attempts[0]
+
+    // ✅ جلب تفاصيل الاختبار
+    const examsData = await db
       .select({
         id: exams.id,
         title: exams.title,
@@ -48,9 +42,10 @@ export async function GET(request) {
       .leftJoin(levels, eq(exams.level_id, levels.id))
       .leftJoin(groups, eq(exams.group_id, groups.id))
       .where(eq(exams.id, examId))
-      .get()
 
-    // جلب الإجابات مع تفاصيل الأسئلة
+    const exam = examsData.length > 0 ? examsData[0] : null
+
+    // ✅ جلب الإجابات مع تفاصيل الأسئلة
     const answers = await db
       .select({
         id: studentAnswers.id,
@@ -65,7 +60,6 @@ export async function GET(request) {
       .from(studentAnswers)
       .leftJoin(examQuestions, eq(studentAnswers.question_id, examQuestions.id))
       .where(eq(studentAnswers.attempt_id, attempt.id))
-      .all()
 
     return NextResponse.json({
       attempt,

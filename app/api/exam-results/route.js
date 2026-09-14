@@ -1,18 +1,10 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { examAttempts, profiles } from '@/db/schema'
+import { examAttempts, profiles, exams } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const examId = searchParams.get('examId')
 
@@ -20,7 +12,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
-    // جلب جميع محاولات الطلاب للاختبار
+    // ✅ جلب جميع محاولات الطلاب للاختبار
     const results = await db
       .select({
         id: examAttempts.id,
@@ -34,19 +26,16 @@ export async function GET(request) {
       .from(examAttempts)
       .leftJoin(profiles, eq(examAttempts.student_id, profiles.id))
       .where(eq(examAttempts.exam_id, examId))
-      .all()
 
-    // جلب تفاصيل الاختبار للحصول على total_points
-    const { exams } = await import('@/db/schema')
-    const exam = await db
+    // ✅ جلب تفاصيل الاختبار للحصول على total_points
+    const examsData = await db
       .select({
         total_points: exams.total_points,
       })
       .from(exams)
       .where(eq(exams.id, examId))
-      .get()
 
-    const totalPoints = exam?.total_points || 0
+    const totalPoints = examsData.length > 0 ? examsData[0].total_points : 0
 
     const formattedResults = results.map(r => ({
       ...r,

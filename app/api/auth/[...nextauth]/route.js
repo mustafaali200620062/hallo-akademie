@@ -3,7 +3,6 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from '@/db'
 import { profiles, roles } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
 
 export const authOptions = {
   providers: [
@@ -15,41 +14,37 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          // تسجيل دخول وهمي للمالك (للتجربة)
-          if (credentials.email === 'mustafaali200620062@gmail.com' && credentials.password === '123456') {
-            return {
-              id: '413a654a-470e-45f2-8e0e-aef51294022f',
-              name: 'Mustafa Ali',
-              email: 'mustafaali200620062@gmail.com',
-              role: 'Eigentümer',
-            }
-          }
-
-          // جلب المستخدم من قاعدة البيانات (للباقي)
-          const user = await db
+          // ✅ جلب المستخدم من قاعدة البيانات
+          const users = await db
             .select({
               id: profiles.id,
               full_name: profiles.full_name,
               email: profiles.email,
               password: profiles.password,
               role_name: roles.name,
+              is_active: profiles.is_active,
             })
             .from(profiles)
             .leftJoin(roles, eq(profiles.role_id, roles.id))
             .where(eq(profiles.email, credentials.email))
-            .get()
 
-          if (!user) {
+          if (!users || users.length === 0) {
             throw new Error('البريد الإلكتروني غير مسجل')
           }
 
-          // التحقق من كلمة المرور
-          const isValid = await bcrypt.compare(credentials.password, user.password)
-          if (!isValid) {
+          const user = users[0]
+
+          // ✅ التحقق من كلمة المرور (نص عادي - بدون bcrypt)
+          if (user.password !== credentials.password) {
             throw new Error('كلمة المرور غير صحيحة')
           }
 
-          // إرجاع بيانات المستخدم
+          // ✅ التحقق من حالة الحساب
+          if (!user.is_active) {
+            throw new Error('الحساب غير مفعل')
+          }
+
+          // ✅ إرجاع بيانات المستخدم
           return {
             id: user.id,
             name: user.full_name,

@@ -12,18 +12,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    // البحث عن الطالب
-    const student = await db
+    // ✅ البحث عن الطالب
+    const students = await db
       .select()
       .from(profiles)
       .where(eq(profiles.phone, phone))
-      .get()
 
-    if (!student) {
+    if (!students || students.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
 
-    // تحديث حالة الطلب
+    const student = students[0]
+
+    // ✅ تحديث حالة الطلب
     await db
       .update(joinRequests)
       .set({ status: 'pending' })

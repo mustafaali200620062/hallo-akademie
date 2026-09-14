@@ -1,67 +1,75 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { groupStudents, exams, examAttempts, studentPoints, groups } from '@/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { groups, groupStudents, exams, lessons, forumPosts, profiles } from '@/db/schema'
+import { eq, and, count, inArray } from 'drizzle-orm'
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { searchParams } = new URL(request.url)
+    const teacherId = searchParams.get('teacher_id')
+
+    // ✅ لو مفيش teacher_id، نرجع أصفار
+    if (!teacherId) {
+      return NextResponse.json({
+        groups: 0,
+        students: 0,
+        exams: 0,
+        pendingExams: 0,
+        lessons: 0,
+        forumPosts: 0
+      })
     }
 
-    // جلب المجموعات التي ينتمي لها الطالب
-    const studentGroups = await db
+    // ✅ عدد المجموعات الخاصة بالمدرس
+    const teacherGroups = await db
       .select()
-      .from(groupStudents)
-      .where(eq(groupStudents.student_id, session.user.id))
-      .all()
+      .from(groups)
+      .where(eq(groups.teacher_id, teacherId))
 
-    const groupIds = studentGroups.map(g => g.group_id)
+    const groupIds = teacherGroups.map(g => g.id)
 
-    // عدد المجموعات
-    const groupsCount = groupIds.length
+    // ✅ عدد الطلاب في مجموعات المدرس
+    let studentsCount = 0
+    if (groupIds.length > 0) {
+      const studentsInGroups = await db
+        .select()
+        .from(groupStudents)
+        .where(inArray(groupStudents.group_id, groupIds))
+      studentsCount = studentsInGroups.length
+    }
 
-    // عدد الاختبارات المتاحة
+    // ✅ عدد الاختبارات في مجموعات المدرس
     let examsCount = 0
     if (groupIds.length > 0) {
-      const availableExams = await db
+      const teacherExams = await db
         .select()
         .from(exams)
         .where(inArray(exams.group_id, groupIds))
-        .all()
-      examsCount = availableExams.filter(e => e.status === 'active' || e.status === 'scheduled').length
+      examsCount = teacherExams.length
     }
 
-    // عدد الاختبارات المكتملة
-    const completedExams = await db
+    // ✅ عدد الشروح
+    const teacherLessons = await db
       .select()
-      .from(examAttempts)
-      .where(and(
-        eq(examAttempts.student_id, session.user.id),
-        eq(examAttempts.status, 'submitted')
-      ))
-      .all()
+      .from(lessons)
+      .where(eq(lessons.created_by, teacherId))
 
-    // النقاط والترتيب
-    const points = await db
+    // ✅ عدد منشورات المنتدى
+    const teacherPosts = await db
       .select()
-      .from(studentPoints)
-      .where(eq(studentPoints.student_id, session.user.id))
-      .get()
+      .from(forumPosts)
+      .where(eq(forumPosts.author_id, teacherId))
 
     return NextResponse.json({
-      groups: groupsCount || 0,
+      groups: teacherGroups.length || 0,
+      students: studentsCount || 0,
       exams: examsCount || 0,
-      completedExams: completedExams.length || 0,
-      totalPoints: points?.total_points || 0,
-      rank: points?.rank || '-'
+      pendingExams: 0,
+      lessons: teacherLessons.length || 0,
+      forumPosts: teacherPosts.length || 0,
     })
   } catch (error) {
-    console.error('❌ خطأ في جلب إحصائيات الطالب:', error)
+    console.error('❌ خطأ في جلب إحصائيات المدرس:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

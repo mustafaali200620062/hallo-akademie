@@ -1,5 +1,3 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, levels, groups } from '@/db/schema'
@@ -7,19 +5,14 @@ import { eq } from 'drizzle-orm'
 
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { id } = await params
 
     if (!id) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
-    const exam = await db
+    // ✅ جلب تفاصيل الاختبار
+    const examsData = await db
       .select({
         id: exams.id,
         title: exams.title,
@@ -41,13 +34,12 @@ export async function GET(request, { params }) {
       .leftJoin(levels, eq(exams.level_id, levels.id))
       .leftJoin(groups, eq(exams.group_id, groups.id))
       .where(eq(exams.id, id))
-      .get()
 
-    if (!exam) {
+    if (!examsData || examsData.length === 0) {
       return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
-    return NextResponse.json(exam)
+    return NextResponse.json(examsData[0])
   } catch (error) {
     console.error('❌ خطأ في جلب تفاصيل الاختبار:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })

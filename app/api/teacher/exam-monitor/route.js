@@ -1,18 +1,10 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { examAttempts, exams, profiles } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const examId = searchParams.get('examId')
 
@@ -20,7 +12,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
-    // جلب جميع محاولات الطلاب لهذا الاختبار
+    // ✅ جلب جميع محاولات الطلاب لهذا الاختبار
     const attempts = await db
       .select({
         id: examAttempts.id,
@@ -42,9 +34,8 @@ export async function GET(request) {
       .leftJoin(profiles, eq(examAttempts.student_id, profiles.id))
       .leftJoin(exams, eq(examAttempts.exam_id, exams.id))
       .where(eq(examAttempts.exam_id, examId))
-      .all()
 
-    // حساب الوقت المنقضي لكل طالب
+    // ✅ حساب الوقت المنقضي لكل طالب
     const attemptsWithTime = attempts?.map(attempt => {
       let elapsedMinutes = 0
       let remainingMinutes = 0
@@ -56,7 +47,7 @@ export async function GET(request) {
         elapsedMinutes = Math.floor((now - start) / 60000)
         const totalMinutes = (attempt.exam_duration || 0) + (attempt.extra_minutes || 0)
         remainingMinutes = Math.max(0, totalMinutes - elapsedMinutes)
-        
+
         if (remainingMinutes <= 0) {
           status = 'expired'
         }
@@ -79,12 +70,6 @@ export async function GET(request) {
 
 export async function PUT(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const { attempt_id, action, extra_minutes } = body
 
@@ -92,19 +77,20 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Attempt ID required' }, { status: 400 })
     }
 
-    // جلب المحاولة الحالية
-    const attempt = await db
+    // ✅ جلب المحاولة الحالية
+    const attempts = await db
       .select()
       .from(examAttempts)
       .where(eq(examAttempts.id, attempt_id))
-      .get()
 
-    if (!attempt) {
+    if (!attempts || attempts.length === 0) {
       return NextResponse.json({ error: 'Attempt not found' }, { status: 404 })
     }
 
+    const attempt = attempts[0]
+
     if (action === 'lock') {
-      // قفل الاختبار
+      // ✅ قفل الاختبار
       await db
         .update(examAttempts)
         .set({
@@ -113,12 +99,12 @@ export async function PUT(request) {
           locked_reason: 'تم القفل من قبل المدرس'
         })
         .where(eq(examAttempts.id, attempt_id))
-      
+
       return NextResponse.json({ success: true, message: 'تم قفل الاختبار' })
     }
 
     if (action === 'unlock') {
-      // فتح الاختبار
+      // ✅ فتح الاختبار
       await db
         .update(examAttempts)
         .set({
@@ -127,19 +113,19 @@ export async function PUT(request) {
           locked_reason: null
         })
         .where(eq(examAttempts.id, attempt_id))
-      
+
       return NextResponse.json({ success: true, message: 'تم فتح الاختبار' })
     }
 
     if (action === 'add_time' && extra_minutes) {
-      // إضافة وقت إضافي
+      // ✅ إضافة وقت إضافي
       await db
         .update(examAttempts)
         .set({
           extra_minutes: (attempt.extra_minutes || 0) + extra_minutes
         })
         .where(eq(examAttempts.id, attempt_id))
-      
+
       return NextResponse.json({ success: true, message: `تم إضافة ${extra_minutes} دقيقة` })
     }
 

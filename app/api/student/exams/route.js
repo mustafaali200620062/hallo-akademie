@@ -1,24 +1,17 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, examAttempts, groupStudents, levels, groups, examQuestions } from '@/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const examId = searchParams.get('examId')
+    const studentId = searchParams.get('student_id')
 
+    // ✅ جلب اختبار محدد مع أسئلته
     if (examId) {
-      // جلب اختبار محدد مع أسئلته
-      const exam = await db
+      const examsData = await db
         .select({
           id: exams.id,
           title: exams.title,
@@ -38,29 +31,31 @@ export async function GET(request) {
         .leftJoin(levels, eq(exams.level_id, levels.id))
         .leftJoin(groups, eq(exams.group_id, groups.id))
         .where(eq(exams.id, examId))
-        .get()
 
-      if (!exam) {
+      if (!examsData || examsData.length === 0) {
         return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
       }
 
-      // جلب أسئلة الاختبار
+      const exam = examsData[0]
+
+      // ✅ جلب أسئلة الاختبار
       const questions = await db
         .select()
         .from(examQuestions)
         .where(eq(examQuestions.exam_id, examId))
-        .orderBy(examQuestions.question_order)
-        .all()
 
       return NextResponse.json({ ...exam, exam_questions: questions || [] })
     }
 
-    // جلب جميع الاختبارات المتاحة للطالب
+    // ✅ جلب جميع الاختبارات المتاحة للطالب
+    if (!studentId) {
+      return NextResponse.json([])
+    }
+
     const studentGroups = await db
       .select()
       .from(groupStudents)
-      .where(eq(groupStudents.student_id, session.user.id))
-      .all()
+      .where(eq(groupStudents.student_id, studentId))
 
     const groupIds = studentGroups.map(g => g.group_id)
 
@@ -87,14 +82,12 @@ export async function GET(request) {
       .leftJoin(levels, eq(exams.level_id, levels.id))
       .leftJoin(groups, eq(exams.group_id, groups.id))
       .where(inArray(exams.group_id, groupIds))
-      .all()
 
-    // جلب محاولات الطالب
+    // ✅ جلب محاولات الطالب
     const attempts = await db
       .select()
       .from(examAttempts)
-      .where(eq(examAttempts.student_id, session.user.id))
-      .all()
+      .where(eq(examAttempts.student_id, studentId))
 
     const attemptMap = {}
     attempts?.forEach(a => {
