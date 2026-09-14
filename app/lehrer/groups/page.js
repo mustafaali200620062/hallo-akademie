@@ -7,7 +7,7 @@ export default function LehrerGroupsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState([])
-  const [allStudents, setAllStudents] = useState([])
+  const [groupStudents, setGroupStudents] = useState({})
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -38,13 +38,17 @@ export default function LehrerGroupsPage() {
         // ✅ تصفية المجموعات الخاصة بالمدرس
         const teacherGroups = groupsData.filter(g => g.teacher_id === teacherId)
         setGroups(teacherGroups || [])
-      }
 
-      // ✅ جلب جميع الطلاب
-      const studentsRes = await fetch('/api/students')
-      const studentsData = await studentsRes.json()
-      if (studentsRes.ok) {
-        setAllStudents(studentsData || [])
+        // ✅ جلب طلاب كل مجموعة
+        const studentsMap = {}
+        for (const group of teacherGroups) {
+          const studentsRes = await fetch(`/api/groups/students?group_id=${group.id}`)
+          const studentsData = await studentsRes.json()
+          if (studentsRes.ok) {
+            studentsMap[group.id] = studentsData || []
+          }
+        }
+        setGroupStudents(studentsMap)
       }
 
     } catch (error) {
@@ -53,10 +57,6 @@ export default function LehrerGroupsPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const getStudentsForGroup = (groupId) => {
-    return allStudents.filter(s => s.group_id === groupId)
   }
 
   if (loading) {
@@ -102,7 +102,7 @@ export default function LehrerGroupsPage() {
             </div>
           ) : (
             groups.map((group) => {
-              const groupStudents = getStudentsForGroup(group.id)
+              const students = groupStudents[group.id] || []
               return (
                 <div key={group.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
                   <div className="p-6 border-b border-gray-200">
@@ -116,13 +116,13 @@ export default function LehrerGroupsPage() {
                   </div>
                   <div className="p-6">
                     <h3 className="text-sm font-bold text-gray-600 mb-3">
-                      👨‍🎓 الطلاب ({groupStudents.length})
+                      👨‍🎓 الطلاب ({students.length})
                     </h3>
                     <div className="space-y-2">
-                      {groupStudents.length === 0 ? (
+                      {students.length === 0 ? (
                         <p className="text-gray-500 text-sm font-bold">لا يوجد طلاب في هذه المجموعة</p>
                       ) : (
-                        groupStudents.map((student) => (
+                        students.map((student) => (
                           <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                             <div className="flex items-center gap-3">
                               <span className="font-bold text-gray-900">{student.full_name}</span>
