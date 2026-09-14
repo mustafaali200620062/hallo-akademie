@@ -7,7 +7,13 @@ import { getFileUrl } from '@/lib/r2'
 
 export async function GET(request, { params }) {
   try {
-    const { id } = params
+    // ✅ في Next.js 15+ لازم نعمل await للـ params
+    const resolvedParams = await params
+    const { id } = resolvedParams
+
+    if (!id) {
+      return NextResponse.json({ error: 'File ID is required' }, { status: 400 })
+    }
 
     // ✅ جلب بيانات الملف من قاعدة البيانات
     const lesson = await db
