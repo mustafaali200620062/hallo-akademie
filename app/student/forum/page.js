@@ -9,7 +9,7 @@ export default function StudentForumPage() {
   const [posts, setPosts] = useState([])
   const [levels, setLevels] = useState([])
   const [userLevel, setUserLevel] = useState(null)
-  const [selectedLevel, setSelectedLevel] = useState(null)
+  const [userLevelCode, setUserLevelCode] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
@@ -18,12 +18,12 @@ export default function StudentForumPage() {
   })
   const [commentData, setCommentData] = useState({})
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     checkUser()
-    fetchData()
   }, [])
 
   const checkUser = async () => {
@@ -35,30 +35,45 @@ export default function StudentForumPage() {
     const parsed = JSON.parse(userData)
     setUserRole(parsed.role)
     setIsAdmin(['Eigentümer', 'Lehrer', 'Assistent'].includes(parsed.role))
+    await fetchData(parsed)
   }
 
-  const fetchData = async () => {
+  const fetchData = async (user) => {
     try {
-      // جلب مستوى الطالب
-      const profileRes = await fetch('/api/profile')
-      const profile = await profileRes.json()
-      const levelId = profile?.level_id || null
-      setUserLevel(levelId)
-      setSelectedLevel(levelId)
-
-      // جلب المنشورات
-      const postsRes = await fetch('/api/forum/posts')
-      const postsData = await postsRes.json()
-      if (postsRes.ok) {
-        // تصفية المنشورات حسب مستوى الطالب
-        const filteredPosts = postsData.filter(p => p.level_id === levelId || !p.level_id)
-        setPosts(filteredPosts || [])
-      }
-
-      // جلب المستويات
+      // ✅ جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
+
+      // ✅ تحديد مستوى الطالب
+      let levelId = user.level_id || null
+      let levelCode = null
+
+      if (levelId && levelsData) {
+        const userLevelData = levelsData.find(l => l.id === levelId)
+        levelCode = userLevelData?.code || null
+      }
+
+      setUserLevel(levelId)
+      setUserLevelCode(levelCode)
+
+      // ✅ تعيين المستوى في النموذج تلقائياً للطالب
+      setFormData(prev => ({ ...prev, level_id: levelId || '' }))
+
+      // ✅ جلب المنشورات
+      const postsRes = await fetch('/api/forum/posts')
+      const postsData = await postsRes.json()
+
+      if (postsRes.ok) {
+        // للطالب: يعرض فقط منشورات مستواه
+        // للأدمن: يعرض كل المنشورات
+        if (isAdmin) {
+          setPosts(postsData || [])
+        } else {
+          const filteredPosts = postsData.filter(p => p.level_id === levelId)
+          setPosts(filteredPosts || [])
+        }
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -68,16 +83,16 @@ export default function StudentForumPage() {
     }
   }
 
-  const handleLevelChange = (levelId) => {
-    setSelectedLevel(levelId)
-    // تصفية المنشورات حسب المستوى المختار
-    const filtered = posts.filter(p => p.level_id === levelId)
-    setPosts(filtered)
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
+
+    // ✅ للطالب: التأكد من أن المستوى هو مستواه فقط
+    if (!isAdmin && formData.level_id !== userLevel) {
+      setError('لا يمكنك النشر إلا في منتدى مستواك فقط')
+      return
+    }
 
     try {
       const response = await fetch('/api/forum/posts', {
@@ -92,13 +107,16 @@ export default function StudentForumPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      setSuccess('✅ تم نشر المنشور بنجاح!')
+      const userData = JSON.parse(localStorage.getItem('user'))
+      await fetchData(userData)
       setShowForm(false)
       setFormData({
         title: '',
         body: '',
-        level_id: ''
+        level_id: userLevel || ''
       })
+      setTimeout(() => setSuccess(null), 3000)
 
     } catch (error) {
       setError(error.message)
@@ -126,7 +144,8 @@ export default function StudentForumPage() {
       }
 
       setCommentData({ ...commentData, [postId]: '' })
-      await fetchData()
+      const userData = JSON.parse(localStorage.getItem('user'))
+      await fetchData(userData)
 
     } catch (error) {
       setError(error.message)
@@ -146,7 +165,8 @@ export default function StudentForumPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      const userData = JSON.parse(localStorage.getItem('user'))
+      await fetchData(userData)
     } catch (error) {
       setError(error.message)
     }
@@ -165,7 +185,8 @@ export default function StudentForumPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchData()
+      const userData = JSON.parse(localStorage.getItem('user'))
+      await fetchData(userData)
     } catch (error) {
       setError(error.message)
     }
@@ -189,8 +210,6 @@ export default function StudentForumPage() {
     )
   }
 
-  const levelOptions = levels.filter(l => l.id === userLevel || isAdmin)
-
   return (
     <div className="min-h-screen bg-gray-100">
       {/* الهيدر */}
@@ -200,32 +219,23 @@ export default function StudentForumPage() {
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-extrabold">المنتدى</h1>
-              {isAdmin && selectedLevel && (
+              {userLevelCode && !isAdmin && (
+                <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
+                  📚 {userLevelCode}
+                </span>
+              )}
+              {isAdmin && (
                 <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
                   👑 إدارة
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-4">
-              {/* اختيار المستوى */}
-              <select
-                value={selectedLevel || ''}
-                onChange={(e) => handleLevelChange(e.target.value)}
-                className="bg-white/20 text-white px-4 py-2 rounded-lg font-bold text-sm focus:outline-none focus:ring-2 focus:ring-white"
-              >
-                {levels.map((level) => (
-                  <option key={level.id} value={level.id} className="text-black">
-                    {level.code} - {level.title}
-                  </option>
-                ))}
-              </select>
-              <button 
-                onClick={() => router.push('/student')}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-              >
-                ← العودة
-              </button>
-            </div>
+            <button
+              onClick={() => router.push('/student')}
+              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+            >
+              ← العودة
+            </button>
           </div>
         </div>
       </div>
@@ -234,34 +244,49 @@ export default function StudentForumPage() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
-            {error}
+            ❌ {error}
           </div>
         )}
 
-        {/* زر إضافة منشور - تصميم تويتر */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg">
-              {userRole?.charAt(0) || 'U'}
-            </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex-1 text-right text-gray-500 hover:text-gray-700 font-bold transition-colors text-lg"
-            >
-              {showForm ? '✖ إلغاء' : '💬 ماذا تريد أن تنشر؟'}
-            </button>
-            {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-extrabold text-sm transition-colors"
-              >
-                نشر
-              </button>
-            )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            {success}
           </div>
-        </div>
+        )}
 
-        {/* نموذج الإضافة - تصميم انيق */}
+        {/* رسالة توضيحية */}
+        {!isAdmin && userLevelCode && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-4 font-bold text-sm">
+            ℹ️ يمكنك النشر والتعليق فقط في منتدى مستوى <strong>{userLevelCode}</strong>
+          </div>
+        )}
+
+        {/* زر إضافة منشور */}
+        {userLevel && (
+          <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg">
+                {userRole?.charAt(0) || 'U'}
+              </div>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex-1 text-right text-gray-500 hover:text-gray-700 font-bold transition-colors text-lg"
+              >
+                {showForm ? '✖ إلغاء' : '💬 ماذا تريد أن تنشر؟'}
+              </button>
+              {!showForm && (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-extrabold text-sm transition-colors"
+                >
+                  نشر
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -287,32 +312,45 @@ export default function StudentForumPage() {
                 />
               </div>
 
-              <div className="flex gap-4">
-                <select
-                  required
-                  value={formData.level_id}
-                  onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
-                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-gray-900 font-bold"
-                >
-                  <option value="">اختر المستوى</option>
-                  {levels.map((level) => (
-                    <option key={level.id} value={level.id}>
-                      {level.code} - {level.title}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-8 py-3 rounded-xl font-extrabold transition-all transform hover:scale-[1.02]"
-                >
-                  ✅ نشر
-                </button>
+              {/* ✅ للطالب: المستوى ثابت ومقفول */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  المستوى:
+                </label>
+                {isAdmin ? (
+                  <select
+                    required
+                    value={formData.level_id}
+                    onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-gray-900 font-bold"
+                  >
+                    <option value="">اختر المستوى</option>
+                    {levels.map((level) => (
+                      <option key={level.id} value={level.id}>
+                        {level.code} - {level.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="bg-purple-50 border-2 border-purple-200 px-4 py-3 rounded-xl">
+                    <span className="font-extrabold text-purple-700">
+                      🔒 {userLevelCode} (مستواك فقط)
+                    </span>
+                  </div>
+                )}
               </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-8 py-3 rounded-xl font-extrabold transition-all transform hover:scale-[1.02]"
+              >
+                ✅ نشر
+              </button>
             </form>
           </div>
         )}
 
-        {/* المنشورات - تصميم تويتر */}
+        {/* المنشورات */}
         <div className="space-y-4">
           {posts.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-500 border border-gray-100">
@@ -323,7 +361,6 @@ export default function StudentForumPage() {
           ) : (
             posts.map((post) => (
               <div key={post.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-                {/* رأس المنشور */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg">
@@ -348,13 +385,11 @@ export default function StudentForumPage() {
                   </button>
                 </div>
 
-                {/* محتوى المنشور */}
                 <div className="mt-3 mr-16">
                   <h3 className="text-xl font-extrabold text-gray-900 mb-2">{post.title}</h3>
                   <p className="text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">{post.body}</p>
                 </div>
 
-                {/* أزرار التفاعل */}
                 <div className="mt-4 mr-16 flex items-center gap-6 border-t border-gray-100 pt-3">
                   <button className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm">
                     💬 <span>{post.comments?.length || 0}</span>
@@ -400,7 +435,6 @@ export default function StudentForumPage() {
                     )}
                   </div>
 
-                  {/* إضافة تعليق */}
                   <div className="mt-3 flex gap-2">
                     <input
                       type="text"
