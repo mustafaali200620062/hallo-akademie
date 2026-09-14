@@ -11,7 +11,7 @@ async function seed() {
       { id: 'r2', name: 'Lehrer', description: 'المدرس' },
       { id: 'r3', name: 'Assistent', description: 'المساعد' },
       { id: 'r4', name: 'Student', description: 'الطالب' },
-    ])
+    ]).onConflictDoNothing()
     console.log('✅ تم إضافة الأدوار')
 
     console.log('📌 إضافة المستويات...')
@@ -20,7 +20,7 @@ async function seed() {
       { id: 'l2', code: 'A2', title: 'A2 - Grundstufe', description: 'المستوى الأساسي' },
       { id: 'l3', code: 'B1', title: 'B1 - Mittelstufe', description: 'المستوى المتوسط' },
       { id: 'l4', code: 'B2', title: 'B2 - Fortgeschritten', description: 'المستوى فوق المتوسط' },
-    ])
+    ]).onConflictDoNothing()
     console.log('✅ تم إضافة المستويات')
 
     console.log('🎉 تم إضافة جميع البيانات الأساسية بنجاح!')
