@@ -10,24 +10,23 @@ export default function LessonsManagementPage() {
   const [groups, setGroups] = useState([])
   const [levels, setLevels] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    content: '',
-    content_url: '',
-    content_type: 'text',
-    group_id: '',
     level_id: '',
+    group_id: '',
     is_published: false
   })
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     checkUser()
     fetchData()
   }, [])
 
-  // ✅ التعديل هنا
   const checkUser = async () => {
     const userData = localStorage.getItem('user')
     if (!userData) {
@@ -63,43 +62,85 @@ export default function LessonsManagementPage() {
     }
   }
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file && file.type === 'application/pdf') {
+      setSelectedFile(file)
+      if (!formData.title) {
+        setFormData({ ...formData, title: file.name.replace('.pdf', '') })
+      }
+    } else {
+      setError('يرجى اختيار ملف PDF فقط')
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
+    setUploading(true)
+
+    if (!selectedFile) {
+      setError('يرجى اختيار ملف PDF')
+      setUploading(false)
+      return
+    }
 
     try {
-      const response = await fetch('/api/lessons', {
+      const uploadData = new FormData()
+      uploadData.append('file', selectedFile)
+      uploadData.append('title', formData.title)
+      uploadData.append('description', formData.description)
+      uploadData.append('level_id', formData.level_id)
+      uploadData.append('group_id', formData.group_id)
+
+      const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: uploadData,
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'حدث خطأ')
+        throw new Error(data.error || 'حدث خطأ في الرفع')
       }
 
-      await fetchData()
+      setSuccess('✅ تم رفع الملف بنجاح!')
       setShowForm(false)
+      setSelectedFile(null)
       setFormData({
         title: '',
         description: '',
-        content: '',
-        content_url: '',
-        content_type: 'text',
-        group_id: '',
         level_id: '',
+        group_id: '',
         is_published: false
       })
+      await fetchData()
 
+    } catch (error) {
+      setError(error.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handlePreview = async (lessonId) => {
+    try {
+      const res = await fetch(`/api/files/${lessonId}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      window.open(data.url, '_blank', 'noopener,noreferrer')
     } catch (error) {
       setError(error.message)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الشرح؟')) return
+    if (!confirm('هل أنت متأكد من حذف هذا الملف؟')) return
 
     try {
       const response = await fetch(`/api/lessons?id=${id}`, {
@@ -120,14 +161,13 @@ export default function LessonsManagementPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-black text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -135,7 +175,7 @@ export default function LessonsManagementPage() {
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-bold">إدارة الشروح</h1>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/eigentuemer')}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors"
             >
@@ -145,124 +185,79 @@ export default function LessonsManagementPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            ❌ {error}
           </div>
         )}
 
-        {/* زر الإضافة */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 font-bold">
+            {success}
+          </div>
+        )}
+
         <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600">إجمالي الشروح: <span className="font-bold">{lessons.length}</span></p>
+          <p className="text-gray-600 font-bold">إجمالي الشروح: <span className="font-extrabold">{lessons.length}</span></p>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors"
           >
-            {showForm ? '× إلغاء' : '+ إضافة شرح جديد'}
+            {showForm ? '× إلغاء' : '+ رفع ملف PDF جديد'}
           </button>
         </div>
 
-        {/* نموذج الإضافة */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">إضافة شرح جديد</h2>
+            <h2 className="text-xl font-bold mb-4">رفع ملف PDF جديد</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">عنوان الشرح</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">ملف PDF</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-black file:text-white file:font-bold hover:file:bg-gray-800"
+                />
+                {selectedFile && (
+                  <p className="mt-2 text-sm text-green-600 font-bold">
+                    ✅ تم اختيار: {selectedFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">عنوان الشرح</label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
                   placeholder="عنوان الشرح"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">الوصف</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">الوصف (اختياري)</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
                   rows="2"
-                  placeholder="وصف الشرح..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">المحتوى (نص)</label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  rows="4"
-                  placeholder="محتوى الشرح..."
+                  placeholder="وصف مختصر..."
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">نوع المحتوى</label>
-                  <select
-                    value={formData.content_type}
-                    onChange={(e) => setFormData({ ...formData, content_type: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="text">نص</option>
-                    <option value="pdf">PDF</option>
-                    <option value="image">صورة</option>
-                    <option value="audio">مقطع صوتي</option>
-                    <option value="video">فيديو</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">رابط الملف</label>
-                  <input
-                    type="url"
-                    value={formData.content_url}
-                    onChange={(e) => setFormData({ ...formData, content_url: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                    placeholder="https://example.com/file.pdf"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">المجموعة</label>
-                  <select
-                    required
-                    value={formData.group_id}
-                    onChange={(e) => {
-                      const group = groups.find(g => g.id === e.target.value)
-                      setFormData({ 
-                        ...formData, 
-                        group_id: e.target.value,
-                        level_id: group?.level_id || ''
-                      })
-                    }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="">اختر المجموعة</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} - {group.level_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">المستوى</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">المستوى</label>
                   <select
                     required
                     value={formData.level_id}
                     onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
                   >
                     <option value="">اختر المستوى</option>
                     {levels.map((level) => (
@@ -272,46 +267,62 @@ export default function LessonsManagementPage() {
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">المجموعة (اختياري)</label>
+                  <select
+                    value={formData.group_id}
+                    onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
+                  >
+                    <option value="">كل المجموعات</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} - {group.level_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
+                  id="publish"
                   checked={formData.is_published}
                   onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                  className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                  className="h-4 w-4"
                 />
-                <label className="text-sm font-medium text-gray-700">نشر الشرح فوراً</label>
+                <label htmlFor="publish" className="text-sm font-bold text-gray-700">نشر الشرح فوراً</label>
               </div>
 
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                disabled={uploading}
+                className="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-extrabold rounded-xl hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50"
               >
-                ✅ إضافة الشرح
+                {uploading ? '⏳ جاري الرفع...' : '📤 رفع الملف'}
               </button>
             </form>
           </div>
         )}
 
-        {/* قائمة الشروح */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">العنوان</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المجموعة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المستوى</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">النوع</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">العنوان</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المستوى</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المجموعة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الحالة</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {lessons.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">📚</div>
                       لا توجد شروح
                     </td>
@@ -319,31 +330,28 @@ export default function LessonsManagementPage() {
                 ) : (
                   lessons.map((lesson) => (
                     <tr key={lesson.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">{lesson.title}</td>
-                      <td className="px-6 py-4 text-gray-600">{lesson.group_name || '-'}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{lesson.title}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
                           {lesson.level_code}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-gray-600 font-bold">{lesson.group_name || 'الكل'}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
-                          {lesson.content_type === 'text' ? 'نص' :
-                           lesson.content_type === 'pdf' ? 'PDF' :
-                           lesson.content_type === 'image' ? 'صورة' :
-                           lesson.content_type === 'audio' ? 'صوتي' :
-                           lesson.content_type === 'video' ? 'فيديو' : lesson.content_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs ${lesson.is_published ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {lesson.is_published ? 'منشور' : 'مسودة'}
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${lesson.is_published ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {lesson.is_published ? '✅ منشور' : '⏸️ مسودة'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <button
+                          onClick={() => handlePreview(lesson.id)}
+                          className="text-blue-600 hover:text-blue-800 font-bold transition-colors mr-3"
+                        >
+                          👁️ معاينة
+                        </button>
+                        <button
                           onClick={() => handleDelete(lesson.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
                         >
                           🗑️ حذف
                         </button>
