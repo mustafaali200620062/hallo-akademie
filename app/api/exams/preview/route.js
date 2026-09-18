@@ -1,4 +1,6 @@
 // @ts-nocheck
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, examQuestions, levels, groups } from '@/db/schema'
@@ -13,7 +15,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
-    // ✅ جلب الاختبار
     const examsData = await db
       .select({
         id: exams.id,
@@ -41,16 +42,21 @@ export async function GET(request) {
 
     const exam = examsData[0]
 
-    // ✅ جلب الأسئلة
     const questions = await db
       .select()
       .from(examQuestions)
       .where(eq(examQuestions.exam_id, examId))
 
-    return NextResponse.json({
+    // ✅ منع الـ caching
+    const response = NextResponse.json({
       ...exam,
       exam_questions: questions || []
     })
+
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+
+    return response
   } catch (error) {
     console.error('❌ Error fetching exam preview:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
