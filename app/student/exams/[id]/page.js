@@ -14,24 +14,30 @@ export default function ExamSolvePage() {
   const [answers, setAnswers] = useState({})
   const [timeLeft, setTimeLeft] = useState(0)
   const [error, setError] = useState(null)
+  const [studentId, setStudentId] = useState(null)
 
   useEffect(() => {
     checkUser()
-    fetchExam()
   }, [])
 
   const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Student') {
+      router.push('/unauthorized')
+      return
+    }
+    setStudentId(parsed.id)
+    await fetchExam(parsed.id)
   }
 
-  const fetchExam = async () => {
+  const fetchExam = async (sId) => {
     try {
-      // جلب بيانات الاختبار
+      // ✅ جلب بيانات الاختبار
       const response = await fetch(`/api/student/exams?examId=${examId}`)
       const data = await response.json()
 
@@ -41,8 +47,8 @@ export default function ExamSolvePage() {
 
       setExam(data)
 
-      // جلب محاولة الطالب
-      const attemptsRes = await fetch(`/api/student/attempts?examId=${examId}`)
+      // ✅ جلب محاولة الطالب
+      const attemptsRes = await fetch(`/api/student/attempts?examId=${examId}&student_id=${sId}`)
       const attemptsData = await attemptsRes.json()
 
       if (attemptsRes.ok && attemptsData) {
@@ -60,24 +66,25 @@ export default function ExamSolvePage() {
         const elapsed = (Date.now() - new Date(attemptsData.started_at).getTime()) / 60000
         const remaining = data.duration_minutes + (attemptsData.extra_minutes || 0) - elapsed
         setTimeLeft(Math.max(0, Math.floor(remaining)))
-        
-        // جلب الإجابات السابقة
+
+        // ✅ جلب الإجابات السابقة
         const answersRes = await fetch(`/api/student/answers?attemptId=${attemptsData.id}`)
         const answersData = await answersRes.json()
-        
+
         const answersMap = {}
         answersData?.forEach(a => {
           answersMap[a.question_id] = a.answer
         })
         setAnswers(answersMap)
-        
+
       } else {
-        // إنشاء محاولة جديدة
+        // ✅ إنشاء محاولة جديدة
         const createRes = await fetch('/api/student/attempts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            exam_id: examId
+            exam_id: examId,
+            student_id: sId
           })
         })
         const newAttempt = await createRes.json()
@@ -113,7 +120,8 @@ export default function ExamSolvePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attempt_id: attempt.id,
-          answers: answers
+          answers: answers,
+          student_id: studentId
         })
       })
 
@@ -129,7 +137,7 @@ export default function ExamSolvePage() {
     }
   }
 
-  // عد تنازلي للوقت
+  // ✅ عد تنازلي للوقت
   useEffect(() => {
     if (timeLeft <= 0 || !attempt) return
 
@@ -137,7 +145,6 @@ export default function ExamSolvePage() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer)
-          // تسليم تلقائي عند انتهاء الوقت
           handleSubmit()
           return 0
         }
@@ -151,7 +158,7 @@ export default function ExamSolvePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
@@ -159,8 +166,8 @@ export default function ExamSolvePage() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg">
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg font-bold">
+          ❌ {error}
         </div>
       </div>
     )
@@ -169,7 +176,7 @@ export default function ExamSolvePage() {
   if (!exam || !attempt) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">الاختبار غير موجود</div>
+        <div className="text-2xl font-bold">الاختبار غير موجود</div>
       </div>
     )
   }
@@ -179,7 +186,6 @@ export default function ExamSolvePage() {
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* الهيدر */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex justify-between items-center">
             <div>
@@ -193,7 +199,6 @@ export default function ExamSolvePage() {
           </div>
         </div>
 
-        {/* الأسئلة */}
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <div className="space-y-6">
             {questions.map((question, index) => (
@@ -202,12 +207,12 @@ export default function ExamSolvePage() {
                   <h3 className="text-lg font-semibold text-gray-900">
                     سؤال {index + 1}
                   </h3>
-                  <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                  <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold">
                     {question.points} نقطة
                   </span>
                 </div>
-                
-                <p className="text-gray-700 mb-4">{question.question_text}</p>
+
+                <p className="text-gray-700 mb-4 font-medium">{question.question_text}</p>
 
                 {question.media_url && (
                   <div className="mb-4">
@@ -224,19 +229,26 @@ export default function ExamSolvePage() {
                 )}
 
                 <div className="space-y-2">
-                  {question.question_type === 'multiple_choice' && question.options?.map((option, i) => (
-                    <label key={i} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`question-${question.id}`}
-                        value={option}
-                        checked={answers[question.id] === option}
-                        onChange={() => handleAnswer(question.id, option)}
-                        className="w-4 h-4 text-green-600 focus:ring-green-500"
-                      />
-                      <span className="text-gray-700">{option}</span>
-                    </label>
-                  ))}
+                  {question.question_type === 'multiple_choice' && (() => {
+                    try {
+                      const opts = typeof question.options === 'string' ? JSON.parse(question.options) : question.options
+                      return opts?.map((option, i) => (
+                        <label key={i} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`question-${question.id}`}
+                            value={option}
+                            checked={answers[question.id] === option}
+                            onChange={() => handleAnswer(question.id, option)}
+                            className="w-4 h-4 text-green-600 focus:ring-green-500"
+                          />
+                          <span className="text-gray-700 font-medium">{option}</span>
+                        </label>
+                      ))
+                    } catch (e) {
+                      return <p className="text-red-500">خطأ في عرض الخيارات</p>
+                    }
+                  })()}
 
                   {question.question_type === 'text' && (
                     <textarea
@@ -256,13 +268,13 @@ export default function ExamSolvePage() {
             <button
               type="button"
               onClick={() => router.push('/student/exams')}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-400 transition-colors"
             >
               ← العودة
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
             >
               ✅ تسليم الاختبار
             </button>
