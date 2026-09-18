@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function ExamsManagementPage() {
+export default function EigentuemerExamsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [exams, setExams] = useState([])
@@ -48,6 +48,11 @@ export default function ExamsManagementPage() {
       router.push('/login')
       return
     }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Eigentümer') {
+      router.push('/unauthorized')
+      return
+    }
   }
 
   const fetchData = async () => {
@@ -78,10 +83,11 @@ export default function ExamsManagementPage() {
     setSuccess(null)
 
     try {
+      const userData = JSON.parse(localStorage.getItem('user'))
       const response = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, created_by: userData.id })
       })
 
       const data = await response.json()
@@ -151,13 +157,30 @@ export default function ExamsManagementPage() {
     }
   }
 
+  const handleToggleStatus = async (examId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'scheduled' : 'active'
+    try {
+      const response = await fetch('/api/exams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: examId, status: newStatus })
+      })
+
+      if (!response.ok) throw new Error('حدث خطأ')
+
+      setSuccess(`✅ تم ${newStatus === 'active' ? 'تشغيل' : 'إيقاف'} الاختبار`)
+      await fetchData()
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
   const handleDeleteExam = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الاختبار؟')) return
 
     try {
-      const response = await fetch(`/api/exams?id=${id}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/exams?id=${id}`, { method: 'DELETE' })
 
       if (!response.ok) {
         const data = await response.json()
@@ -174,9 +197,7 @@ export default function ExamsManagementPage() {
     if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return
 
     try {
-      const response = await fetch(`/api/exam-questions?id=${id}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/exam-questions?id=${id}`, { method: 'DELETE' })
 
       if (!response.ok) {
         const data = await response.json()
@@ -214,15 +235,15 @@ export default function ExamsManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-yellow-400 text-black shadow-lg sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-extrabold">إدارة الاختبارات</h1>
+              <span className="bg-black/20 px-3 py-1 rounded-full text-sm font-bold">👑 مالك</span>
             </div>
-            <button 
+            <button
               onClick={() => router.push('/eigentuemer')}
               className="bg-black/20 hover:bg-black/40 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
             >
@@ -232,7 +253,6 @@ export default function ExamsManagementPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 font-bold">
@@ -246,7 +266,6 @@ export default function ExamsManagementPage() {
           </div>
         )}
 
-        {/* زر الإضافة */}
         <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600 font-bold">إجمالي الاختبارات: <span className="font-extrabold">{exams.length}</span></p>
           {!showQuestions && (
@@ -272,7 +291,6 @@ export default function ExamsManagementPage() {
           )}
         </div>
 
-        {/* نموذج إضافة اختبار */}
         {showForm && !showQuestions && (
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200 mb-8">
             <h2 className="text-2xl font-extrabold mb-6 text-gray-900">📝 اختبار جديد</h2>
@@ -312,8 +330,8 @@ export default function ExamsManagementPage() {
                     value={formData.group_id}
                     onChange={(e) => {
                       const group = groups.find(g => g.id === e.target.value)
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         group_id: e.target.value,
                         level_id: group?.level_id || ''
                       })
@@ -425,7 +443,6 @@ export default function ExamsManagementPage() {
           </div>
         )}
 
-        {/* نموذج إضافة أسئلة */}
         {showQuestions && currentExamId && (
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200 mb-8">
             <h2 className="text-2xl font-extrabold mb-6 text-gray-900 flex items-center gap-2">
@@ -436,7 +453,6 @@ export default function ExamsManagementPage() {
             </h2>
 
             <form onSubmit={handleAddQuestion} className="space-y-6">
-              {/* نوع السؤال */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">نوع السؤال</label>
                 <select
@@ -452,7 +468,6 @@ export default function ExamsManagementPage() {
                 </select>
               </div>
 
-              {/* نص السؤال */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">نص السؤال</label>
                 <textarea
@@ -465,7 +480,6 @@ export default function ExamsManagementPage() {
                 />
               </div>
 
-              {/* إضافة وسائط */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">إضافة وسائط (اختياري)</label>
                 <div className="flex gap-4 flex-wrap">
@@ -514,7 +528,6 @@ export default function ExamsManagementPage() {
                 )}
               </div>
 
-              {/* الخيارات (لاختيار من متعدد و مطابقة) */}
               {(questionForm.question_type === 'multiple_choice' || questionForm.question_type === 'matching') && (
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">الخيارات</label>
@@ -551,11 +564,10 @@ export default function ExamsManagementPage() {
                 </div>
               )}
 
-              {/* الإجابة الصحيحة */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  {questionForm.question_type === 'true_false' ? 'الإجابة الصحيحة' : 
-                   questionForm.question_type === 'text' ? 'الإجابة النموذجية' : 
+                  {questionForm.question_type === 'true_false' ? 'الإجابة الصحيحة' :
+                   questionForm.question_type === 'text' ? 'الإجابة النموذجية' :
                    questionForm.question_type === 'multiple_choice' || questionForm.question_type === 'matching' ? 'الإجابة الصحيحة' :
                    'الإجابة الصحيحة'}
                 </label>
@@ -585,7 +597,6 @@ export default function ExamsManagementPage() {
                 )}
               </div>
 
-              {/* الدرجة */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">درجة السؤال</label>
                 <input
@@ -600,7 +611,6 @@ export default function ExamsManagementPage() {
                 />
               </div>
 
-              {/* شرح الإجابة */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">شرح الإجابة (اختياري)</label>
                 <textarea
@@ -620,7 +630,6 @@ export default function ExamsManagementPage() {
               </button>
             </form>
 
-            {/* قائمة الأسئلة المضافة */}
             {questions.length > 0 && (
               <div className="mt-8 border-t border-gray-200 pt-6">
                 <h3 className="text-xl font-extrabold mb-4 text-gray-900">📋 الأسئلة المضافة</h3>
@@ -676,7 +685,6 @@ export default function ExamsManagementPage() {
           </div>
         )}
 
-        {/* قائمة الاختبارات */}
         {!showQuestions && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
@@ -716,32 +724,50 @@ export default function ExamsManagementPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                            exam.status === 'active' ? 'bg-green-100 text-green-800' : 
-                            exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 
+                            exam.status === 'active' ? 'bg-green-100 text-green-800' :
+                            exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {exam.status === 'active' ? '🟢 نشط' : 
-                             exam.status === 'scheduled' ? '🟡 مجدول' : 
+                            {exam.status === 'active' ? '🟢 نشط' :
+                             exam.status === 'scheduled' ? '🟡 مجدول' :
                              '⚪ منتهي'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => {
-                              setCurrentExamId(exam.id)
-                              setShowQuestions(true)
-                              fetchQuestions()
-                            }}
-                            className="text-yellow-600 hover:text-yellow-800 font-bold transition-colors mr-3"
-                          >
-                            ✏️ إضافة أسئلة
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExam(exam.id)}
-                            className="text-red-600 hover:text-red-800 font-bold transition-colors"
-                          >
-                            🗑️ حذف
-                          </button>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => router.push(`/eigentuemer/exams/${exam.id}/preview`)}
+                              className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-bold hover:bg-blue-200 transition-colors text-sm"
+                            >
+                              👁️ معاينة
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCurrentExamId(exam.id)
+                                setShowQuestions(true)
+                                fetchQuestions()
+                              }}
+                              className="text-yellow-600 hover:text-yellow-800 font-bold transition-colors text-sm"
+                            >
+                              ✏️ إضافة أسئلة
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(exam.id, exam.status)}
+                              className={`px-3 py-1 rounded-lg font-bold transition-colors text-sm ${
+                                exam.status === 'active'
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                            >
+                              {exam.status === 'active' ? '⏸️ إيقاف' : '▶️ تشغيل'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExam(exam.id)}
+                              className="bg-red-100 text-red-700 px-3 py-1 rounded-lg font-bold hover:bg-red-200 transition-colors text-sm"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

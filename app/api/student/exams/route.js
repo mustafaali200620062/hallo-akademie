@@ -3,6 +3,16 @@ import { db } from '@/db'
 import { exams, examAttempts, groupStudents, levels, groups, examQuestions } from '@/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 
+// ✅ دالة خلط عشوائي (Fisher-Yates Shuffle)
+function shuffleArray(array) {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -44,7 +54,25 @@ export async function GET(request) {
         .from(examQuestions)
         .where(eq(examQuestions.exam_id, examId))
 
-      return NextResponse.json({ ...exam, exam_questions: questions || [] })
+      // ✅ خلط ترتيب الأسئلة عشوائياً
+      const shuffledQuestions = shuffleArray(questions || [])
+
+      // ✅ خلط ترتيب الخيارات جوه كل سؤال
+      const shuffledWithOptions = shuffledQuestions.map(q => {
+        let shuffledOpts = q.options
+        try {
+          const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+          if (Array.isArray(opts) && opts.length > 0 && q.question_type !== 'matching') {
+            // خلط الخيارات (مع الحفاظ على تتبع الإجابة الصحيحة)
+            shuffledOpts = JSON.stringify(shuffleArray(opts))
+          }
+        } catch (e) {
+          shuffledOpts = q.options
+        }
+        return { ...q, options: shuffledOpts }
+      })
+
+      return NextResponse.json({ ...exam, exam_questions: shuffledWithOptions })
     }
 
     // ✅ جلب جميع الاختبارات المتاحة للطالب
