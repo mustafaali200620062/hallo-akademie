@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, examAttempts, groupStudents, levels, groups, examQuestions } from '@/db/schema'
-import { eq, inArray, and } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
+import { getFileUrl } from '@/lib/r2'
 
 // ✅ دالة خلط عشوائي
 function shuffleArray(array) {
@@ -63,18 +64,36 @@ export async function GET(request) {
 
       const shuffledQuestions = shuffleArray(questions || [])
 
-      const shuffledWithOptions = shuffledQuestions.map(q => {
-        let shuffledOpts = q.options
-        try {
-          const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
-          if (Array.isArray(opts) && opts.length > 0 && q.question_type !== 'matching') {
-            shuffledOpts = JSON.stringify(shuffleArray(opts))
+      // ✅ تحويل media_url لـ Signed URL
+      const shuffledWithOptions = await Promise.all(
+        shuffledQuestions.map(async (q) => {
+          let shuffledOpts = q.options
+          try {
+            const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+            if (Array.isArray(opts) && opts.length > 0 && q.question_type !== 'matching') {
+              shuffledOpts = JSON.stringify(shuffleArray(opts))
+            }
+          } catch (e) {
+            shuffledOpts = q.options
           }
-        } catch (e) {
-          shuffledOpts = q.options
-        }
-        return { ...q, options: shuffledOpts }
-      })
+
+          // ✅ لو في media_url، نعمل Signed URL
+          let signedMediaUrl = q.media_url
+          if (q.media_url && (q.question_type === 'image' || q.question_type === 'audio')) {
+            try {
+              // لو الـ URL مش كامل (مش بيبدأ بـ http)، نعمل signed URL
+              if (!q.media_url.startsWith('http')) {
+                signedMediaUrl = await getFileUrl(q.media_url, 3600)
+              }
+            } catch (error) {
+              console.error('Error signing media URL:', error)
+              signedMediaUrl = q.media_url
+            }
+          }
+
+          return { ...q, options: shuffledOpts, media_url: signedMediaUrl }
+        })
+      )
 
       return NextResponse.json({ ...exam, exam_questions: shuffledWithOptions })
     }
