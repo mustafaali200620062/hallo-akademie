@@ -98,7 +98,7 @@ export default function LehrerExamsPage() {
     setQuestions(newQuestions)
   }
 
-  // ✅ إضافة سؤال جديد حسب النوع
+  // ✅ إضافة سؤال جديد
   const addQuestion = (type) => {
     const baseQuestion = {
       question_text: '',
@@ -124,7 +124,6 @@ export default function LehrerExamsPage() {
     setSuccess(null)
 
     try {
-      // ✅ بناء التاريخ
       const startMonth = formData.starts_at_month.padStart(2, '0')
       const startDay = formData.starts_at_day.padStart(2, '0')
       const startDate = `${formData.starts_at_year}-${startMonth}-${startDay}T${to24Hour(formData.starts_at_hour, formData.starts_at_ampm)}:${formData.starts_at_minute.padStart(2, '0')}:00`
@@ -133,7 +132,6 @@ export default function LehrerExamsPage() {
       const endDay = formData.ends_at_day.padStart(2, '0')
       const endDate = `${formData.ends_at_year}-${endMonth}-${endDay}T${to24Hour(formData.ends_at_hour, formData.ends_at_ampm)}:${formData.ends_at_minute.padStart(2, '0')}:00`
 
-      // 1️⃣ إنشاء الاختبار
       const response = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,7 +156,7 @@ export default function LehrerExamsPage() {
 
       const examId = data.id || data.exam?.id
 
-      // 2️⃣ إضافة الأسئلة
+      // إضافة الأسئلة
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i]
 
@@ -207,6 +205,34 @@ export default function LehrerExamsPage() {
       })
       setTimeout(() => setSuccess(null), 3000)
 
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
+  // ✅ تغيير حالة الاختبار (تشغيل / إيقاف)
+  const handleToggleStatus = async (examId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'scheduled' : 'active'
+
+    try {
+      const response = await fetch('/api/exams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: examId,
+          status: newStatus
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'حدث خطأ')
+      }
+
+      setSuccess(`✅ تم ${newStatus === 'active' ? 'تشغيل' : 'إيقاف'} الاختبار`)
+      await fetchData(teacherId)
+      setTimeout(() => setSuccess(null), 3000)
     } catch (error) {
       setError(error.message)
     }
@@ -564,45 +590,27 @@ export default function LehrerExamsPage() {
                 </div>
               </div>
 
-              {/* ✅ الأسئلة */}
+              {/* الأسئلة */}
               <div className="border-t-2 border-gray-200 pt-4">
                 <label className="block text-sm font-bold text-gray-700 mb-3">
                   الأسئلة ({questions.length})
                 </label>
 
-                {/* أزرار إضافة الأسئلة */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => addQuestion('multiple_choice')}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700"
-                  >
+                  <button type="button" onClick={() => addQuestion('multiple_choice')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700">
                     + اختيار من متعدد
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => addQuestion('matching')}
-                    className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700"
-                  >
+                  <button type="button" onClick={() => addQuestion('matching')} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700">
                     + مطابقة
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => addQuestion('image')}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700"
-                  >
+                  <button type="button" onClick={() => addQuestion('image')} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700">
                     + صورة
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => addQuestion('audio')}
-                    className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700"
-                  >
+                  <button type="button" onClick={() => addQuestion('audio')} className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700">
                     + صوتي
                   </button>
                 </div>
 
-                {/* عرض الأسئلة */}
                 {questions.map((q, idx) => (
                   <QuestionBuilder
                     key={idx}
@@ -615,7 +623,7 @@ export default function LehrerExamsPage() {
 
                 {questions.length === 0 && (
                   <p className="text-gray-500 text-sm font-bold text-center py-4">
-                    لم تضف أي أسئلة بعد. اضغط على أحد الأزرار أعلاه.
+                    لم تضف أي أسئلة بعد.
                   </p>
                 )}
               </div>
@@ -636,6 +644,7 @@ export default function LehrerExamsPage() {
           </div>
         )}
 
+        {/* جدول الاختبارات */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -669,17 +678,41 @@ export default function LehrerExamsPage() {
                       </td>
                       <td className="px-6 py-4 text-gray-600 font-bold">{exam.duration_minutes} دقيقة</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${exam.status === 'active' ? 'bg-green-100 text-green-800' : exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {exam.status === 'active' ? 'نشط' : exam.status === 'scheduled' ? 'مجدول' : 'منتهي'}
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          exam.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          exam.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {exam.status === 'active' ? '✅ نشط' : 
+                           exam.status === 'scheduled' ? '⏰ مجدول' : 
+                           '⚪ منتهي'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleDelete(exam.id)}
-                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
-                        >
-                          🗑️ حذف
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => router.push(`/lehrer/exams/${exam.id}/preview`)}
+                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-bold hover:bg-blue-200 transition-colors text-sm"
+                          >
+                            👁️ معاينة
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(exam.id, exam.status)}
+                            className={`px-3 py-1 rounded-lg font-bold transition-colors text-sm ${
+                              exam.status === 'active'
+                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            {exam.status === 'active' ? '⏸️ إيقاف' : '▶️ تشغيل'}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(exam.id)}
+                            className="bg-red-100 text-red-700 px-3 py-1 rounded-lg font-bold hover:bg-red-200 transition-colors text-sm"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -97,6 +97,28 @@ export async function POST(request) {
   }
 }
 
+// ✅ تحديث حالة الاختبار (تشغيل / إيقاف)
+export async function PUT(request) {
+  try {
+    const { id, status } = await request.json()
+
+    if (!id || !status) {
+      return NextResponse.json({ error: 'Exam ID and status are required' }, { status: 400 })
+    }
+
+    if (!['active', 'scheduled', 'ended', 'draft'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+
+    await db.update(exams).set({ status }).where(eq(exams.id, id))
+
+    return NextResponse.json({ success: true, status })
+  } catch (error) {
+    console.error('❌ Error updating exam status:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 // ✅ حذف اختبار
 export async function DELETE(request) {
   try {
