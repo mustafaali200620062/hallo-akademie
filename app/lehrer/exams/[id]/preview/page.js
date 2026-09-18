@@ -1,20 +1,29 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-function PreviewContent() {
+export default function LehrerExamPreviewPage({ params }) {
   const router = useRouter()
-  const params = useParams()
-  const examId = params.id
-
   const [loading, setLoading] = useState(true)
   const [exam, setExam] = useState(null)
   const [error, setError] = useState(null)
+  const [examId, setExamId] = useState(null)
+
+  // ✅ حل الـ params في Next.js 15
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolved = await params
+      setExamId(resolved.id)
+    }
+    resolveParams()
+  }, [params])
 
   useEffect(() => {
-    checkUser()
-  }, [])
+    if (examId) {
+      checkUser()
+    }
+  }, [examId])
 
   const checkUser = async () => {
     const userData = localStorage.getItem('user')
@@ -191,17 +200,5 @@ function PreviewContent() {
         </div>
       </div>
     </div>
-  )
-}
-
-export default function LehrerExamPreviewPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl font-bold">جاري التحميل...</div>
-      </div>
-    }>
-      <PreviewContent />
-    </Suspense>
   )
 }
