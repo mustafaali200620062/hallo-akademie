@@ -16,8 +16,14 @@ export default function LehrerExamsPage() {
     description: '',
     group_id: '',
     level_id: '',
-    starts_at: '',
-    ends_at: '',
+    starts_at_date: '',
+    starts_at_hour: '',
+    starts_at_minute: '',
+    starts_at_ampm: 'AM',
+    ends_at_date: '',
+    ends_at_hour: '',
+    ends_at_minute: '',
+    ends_at_ampm: 'AM',
     duration_minutes: '',
     total_points: ''
   })
@@ -45,7 +51,6 @@ export default function LehrerExamsPage() {
 
   const fetchData = async (tId) => {
     try {
-      // ✅ جلب المجموعات
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       if (groupsRes.ok) {
@@ -53,7 +58,6 @@ export default function LehrerExamsPage() {
         setGroups(teacherGroups || [])
       }
 
-      // ✅ جلب الاختبارات
       const examsRes = await fetch('/api/exams')
       const examsData = await examsRes.json()
       if (examsRes.ok) {
@@ -61,7 +65,6 @@ export default function LehrerExamsPage() {
         setExams(teacherExams || [])
       }
 
-      // ✅ جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
@@ -74,17 +77,35 @@ export default function LehrerExamsPage() {
     }
   }
 
+  // ✅ تحويل الوقت لصيغة 24 ساعة
+  const to24Hour = (hour, ampm) => {
+    let h = parseInt(hour)
+    if (ampm === 'PM' && h !== 12) h += 12
+    if (ampm === 'AM' && h === 12) h = 0
+    return h.toString().padStart(2, '0')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
 
     try {
+      const startDate = `${formData.starts_at_date}T${to24Hour(formData.starts_at_hour, formData.starts_at_ampm)}:${formData.starts_at_minute.padStart(2, '0')}:00`
+      const endDate = `${formData.ends_at_date}T${to24Hour(formData.ends_at_hour, formData.ends_at_ampm)}:${formData.ends_at_minute.padStart(2, '0')}:00`
+
       const response = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          title: formData.title,
+          description: formData.description,
+          group_id: formData.group_id,
+          level_id: formData.level_id,
+          starts_at: startDate,
+          ends_at: endDate,
+          duration_minutes: formData.duration_minutes,
+          total_points: formData.total_points,
           created_by: teacherId
         })
       })
@@ -103,8 +124,14 @@ export default function LehrerExamsPage() {
         description: '',
         group_id: '',
         level_id: '',
-        starts_at: '',
-        ends_at: '',
+        starts_at_date: '',
+        starts_at_hour: '',
+        starts_at_minute: '',
+        starts_at_ampm: 'AM',
+        ends_at_date: '',
+        ends_at_hour: '',
+        ends_at_minute: '',
+        ends_at_ampm: 'AM',
         duration_minutes: '',
         total_points: ''
       })
@@ -258,27 +285,119 @@ export default function LehrerExamsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">تاريخ البدء</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={formData.starts_at}
-                    onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  />
+              {/* ✅ تاريخ البدء */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ البدء (Start Date)</label>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.starts_at_date}
+                      onChange={(e) => setFormData({ ...formData, starts_at_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Hour (1-12)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      required
+                      value={formData.starts_at_hour}
+                      onChange={(e) => setFormData({ ...formData, starts_at_hour: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="09"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minute</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      required
+                      value={formData.starts_at_minute}
+                      onChange={(e) => setFormData({ ...formData, starts_at_minute: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="30"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">AM/PM</label>
+                    <select
+                      value={formData.starts_at_ampm}
+                      onChange={(e) => setFormData({ ...formData, starts_at_ampm: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      dir="ltr"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">تاريخ الانتهاء</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={formData.ends_at}
-                    onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  />
+              {/* ✅ تاريخ الانتهاء */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ الانتهاء (End Date)</label>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.ends_at_date}
+                      onChange={(e) => setFormData({ ...formData, ends_at_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Hour (1-12)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      required
+                      value={formData.ends_at_hour}
+                      onChange={(e) => setFormData({ ...formData, ends_at_hour: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="11"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minute</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      required
+                      value={formData.ends_at_minute}
+                      onChange={(e) => setFormData({ ...formData, ends_at_minute: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="30"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">AM/PM</label>
+                    <select
+                      value={formData.ends_at_ampm}
+                      onChange={(e) => setFormData({ ...formData, ends_at_ampm: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      dir="ltr"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -293,6 +412,7 @@ export default function LehrerExamsPage() {
                     onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
                     placeholder="60"
+                    dir="ltr"
                   />
                 </div>
 
@@ -307,6 +427,7 @@ export default function LehrerExamsPage() {
                     onChange={(e) => setFormData({ ...formData, total_points: e.target.value })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
                     placeholder="100"
+                    dir="ltr"
                   />
                 </div>
               </div>
