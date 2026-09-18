@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, examAttempts, groupStudents, levels, groups, examQuestions } from '@/db/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, and } from 'drizzle-orm'
 
-// ✅ دالة خلط عشوائي (Fisher-Yates Shuffle)
+// ✅ دالة خلط عشوائي
 function shuffleArray(array) {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -48,22 +48,26 @@ export async function GET(request) {
 
       const exam = examsData[0]
 
-      // ✅ جلب أسئلة الاختبار
+      // ✅ منع الطالب من الدخول لو الاختبار مش active
+      if (studentId && exam.status !== 'active') {
+        return NextResponse.json({
+          error: 'هذا الاختبار غير مفتوح حالياً. يرجى الانتظار حتى يبدأه المدرس.',
+          status: exam.status
+        }, { status: 403 })
+      }
+
       const questions = await db
         .select()
         .from(examQuestions)
         .where(eq(examQuestions.exam_id, examId))
 
-      // ✅ خلط ترتيب الأسئلة عشوائياً
       const shuffledQuestions = shuffleArray(questions || [])
 
-      // ✅ خلط ترتيب الخيارات جوه كل سؤال
       const shuffledWithOptions = shuffledQuestions.map(q => {
         let shuffledOpts = q.options
         try {
           const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
           if (Array.isArray(opts) && opts.length > 0 && q.question_type !== 'matching') {
-            // خلط الخيارات (مع الحفاظ على تتبع الإجابة الصحيحة)
             shuffledOpts = JSON.stringify(shuffleArray(opts))
           }
         } catch (e) {
@@ -111,7 +115,6 @@ export async function GET(request) {
       .leftJoin(groups, eq(exams.group_id, groups.id))
       .where(inArray(exams.group_id, groupIds))
 
-    // ✅ جلب محاولات الطالب
     const attempts = await db
       .select()
       .from(examAttempts)

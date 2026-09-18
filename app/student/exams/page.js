@@ -46,20 +46,31 @@ export default function StudentExamsPage() {
     }
   }
 
-  const getStatusBadge = (attempt) => {
-    if (!attempt || attempt.status === 'not_started') {
-      return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">متاح</span>
+  const getStatusBadge = (exam) => {
+    const attempt = exam.attempt
+
+    if (attempt?.status === 'submitted') {
+      return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ تم التسليم</span>
     }
-    if (attempt.status === 'in_progress') {
-      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">قيد الحل</span>
+    if (attempt?.status === 'in_progress') {
+      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">⏳ قيد الحل</span>
     }
-    if (attempt.status === 'submitted') {
-      return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">تم التسليم</span>
+    if (attempt?.status === 'locked') {
+      return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">🔒 مغلق</span>
     }
-    if (attempt.status === 'locked') {
-      return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">مغلق</span>
+
+    // ✅ لو الاختبار مش active
+    if (exam.status !== 'active') {
+      if (exam.status === 'scheduled') {
+        return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">⏰ لم يبدأ بعد</span>
+      }
+      if (exam.status === 'ended') {
+        return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">⚪ منتهي</span>
+      }
+      return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">📝 مسودة</span>
     }
-    return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold">غير معروف</span>
+
+    return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">🟢 متاح</span>
   }
 
   if (loading) {
@@ -81,7 +92,7 @@ export default function StudentExamsPage() {
             </div>
             <button
               onClick={() => router.push('/student')}
-              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors"
+              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
             >
               ← العودة
             </button>
@@ -103,51 +114,74 @@ export default function StudentExamsPage() {
               <p className="font-bold">لا توجد اختبارات متاحة لك حالياً</p>
             </div>
           ) : (
-            exams.map((exam) => (
-              <div key={exam.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
-                      {exam.level_code}
-                    </span>
-                    {getStatusBadge(exam.attempt)}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{exam.title}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{exam.description}</p>
-                  <div className="space-y-1 text-sm text-gray-500 font-bold">
-                    <p>⏱️ المدة: {exam.duration_minutes} دقيقة</p>
-                    <p>📊 الدرجة: {exam.total_points}</p>
-                    <p>📅 {new Date(exam.starts_at).toLocaleDateString('ar-EG')}</p>
-                  </div>
-                  {exam.attempt?.status === 'submitted' && (
-                    <div className="mt-3 p-2 bg-blue-50 rounded-lg text-center">
-                      <span className="text-blue-700 font-bold">النتيجة: {exam.attempt.score} / {exam.total_points}</span>
+            exams.map((exam) => {
+              const attempt = exam.attempt
+              const isActive = exam.status === 'active'
+              const canStart = isActive && (!attempt || attempt.status === 'not_started')
+              const canContinue = attempt?.status === 'in_progress'
+              const isLocked = attempt?.status === 'locked'
+              const isSubmitted = attempt?.status === 'submitted'
+
+              return (
+                <div key={exam.id} className={`bg-white rounded-xl shadow-lg overflow-hidden transition-shadow ${isActive ? 'hover:shadow-xl' : 'opacity-90'}`}>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                        {exam.level_code}
+                      </span>
+                      {getStatusBadge(exam)}
                     </div>
-                  )}
-                  {exam.attempt?.status === 'not_started' && (
-                    <Link
-                      href={`/student/exams/${exam.id}`}
-                      className="mt-4 block text-center bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
-                    >
-                      بدء الاختبار
-                    </Link>
-                  )}
-                  {exam.attempt?.status === 'in_progress' && (
-                    <Link
-                      href={`/student/exams/${exam.id}`}
-                      className="mt-4 block text-center bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700 transition-colors"
-                    >
-                      استكمال الاختبار
-                    </Link>
-                  )}
-                  {exam.attempt?.status === 'locked' && (
-                    <div className="mt-4 text-center text-red-600 font-bold">
-                      ⛔ تم قفل الاختبار
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{exam.title}</h3>
+                    <p className="text-gray-600 text-sm mb-3 font-medium">{exam.description}</p>
+                    <div className="space-y-1 text-sm text-gray-500 font-bold">
+                      <p>⏱️ المدة: {exam.duration_minutes} دقيقة</p>
+                      <p>📊 الدرجة: {exam.total_points}</p>
+                      <p>📅 {new Date(exam.starts_at).toLocaleDateString('ar-EG')}</p>
                     </div>
-                  )}
+
+                    {isSubmitted && (
+                      <div className="mt-3 p-2 bg-blue-50 rounded-lg text-center">
+                        <span className="text-blue-700 font-bold">النتيجة: {attempt.score} / {exam.total_points}</span>
+                      </div>
+                    )}
+
+                    {/* ✅ لو الاختبار active → الطالب يقدر يدخل */}
+                    {canStart && (
+                      <Link
+                        href={`/student/exams/${exam.id}`}
+                        className="mt-4 block text-center bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
+                      >
+                        🚀 بدء الاختبار
+                      </Link>
+                    )}
+
+                    {canContinue && (
+                      <Link
+                        href={`/student/exams/${exam.id}`}
+                        className="mt-4 block text-center bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700 transition-colors"
+                      >
+                        ⏩ استكمال الاختبار
+                      </Link>
+                    )}
+
+                    {isLocked && (
+                      <div className="mt-4 text-center text-red-600 font-bold">
+                        ⛔ تم قفل الاختبار
+                      </div>
+                    )}
+
+                    {/* ✅ لو الاختبار مش active */}
+                    {!isActive && !isSubmitted && !canContinue && !isLocked && (
+                      <div className="mt-4 text-center bg-gray-100 text-gray-600 px-4 py-2 rounded-lg font-bold">
+                        {exam.status === 'scheduled' && '⏰ لم يبدأ بعد'}
+                        {exam.status === 'ended' && '⚪ انتهى الاختبار'}
+                        {exam.status === 'draft' && '📝 غير متاح'}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
