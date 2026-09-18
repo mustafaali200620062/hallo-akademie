@@ -32,7 +32,8 @@ export default function EigentuemerExamPreviewPage() {
 
   const fetchExam = async () => {
     try {
-      const response = await fetch(`/api/student/exams?examId=${examId}`)
+      // ✅ استخدام API المعاينة الجديد
+      const response = await fetch(`/api/exams/preview?examId=${examId}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -78,7 +79,6 @@ export default function EigentuemerExamPreviewPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* الهيدر */}
       <div className="bg-yellow-500 text-black shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -98,30 +98,18 @@ export default function EigentuemerExamPreviewPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* معلومات الاختبار */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{exam.title}</h2>
           <p className="text-gray-600 mb-4 font-medium">{exam.description || 'لا يوجد وصف'}</p>
           <div className="flex flex-wrap gap-2 text-sm font-bold">
-            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-              📚 {exam.level_code}
-            </span>
-            <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
-              👥 {exam.group_name}
-            </span>
-            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">
-              ⏱️ {exam.duration_minutes} دقيقة
-            </span>
-            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
-              📊 {exam.total_points} نقطة
-            </span>
-            <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full">
-              📝 {questions.length} سؤال
-            </span>
+            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">📚 {exam.level_code}</span>
+            <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">👥 {exam.group_name}</span>
+            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">⏱️ {exam.duration_minutes} دقيقة</span>
+            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">📊 {exam.total_points} نقطة</span>
+            <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full">📝 {questions.length} سؤال</span>
           </div>
         </div>
 
-        {/* الأسئلة */}
         <div className="space-y-4">
           {questions.length === 0 ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500 font-bold">
@@ -159,7 +147,6 @@ export default function EigentuemerExamPreviewPage() {
 
                   <p className="text-gray-700 mb-4 font-medium">{question.question_text}</p>
 
-                  {/* الوسائط */}
                   {question.media_url && (
                     <div className="mb-4">
                       {question.question_type === 'audio' && (
@@ -173,7 +160,6 @@ export default function EigentuemerExamPreviewPage() {
                     </div>
                   )}
 
-                  {/* الخيارات */}
                   {options && options.length > 0 && (
                     <div className="space-y-2">
                       {options.map((opt, i) => (
@@ -192,12 +178,9 @@ export default function EigentuemerExamPreviewPage() {
                     </div>
                   )}
 
-                  {/* شرح الإجابة */}
                   {question.explanation && (
                     <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-bold">
-                        💡 شرح: {question.explanation}
-                      </p>
+                      <p className="text-sm text-blue-800 font-bold">💡 شرح: {question.explanation}</p>
                     </div>
                   )}
                 </div>
