@@ -17,7 +17,6 @@ export default function ExamSolvePage({ params }) {
   const [examEnded, setExamEnded] = useState(false)
   const [requestingReentry, setRequestingReentry] = useState(false)
 
-  // ✅ حل params (Next.js 15)
   useEffect(() => {
     const resolveParams = async () => {
       const resolved = await params
@@ -49,7 +48,6 @@ export default function ExamSolvePage({ params }) {
 
   const fetchExam = async (sId) => {
     try {
-      // ✅ جلب بيانات الاختبار
       const response = await fetch(`/api/student/exams?examId=${examId}`)
       const data = await response.json()
 
@@ -59,7 +57,6 @@ export default function ExamSolvePage({ params }) {
 
       setExam(data)
 
-      // ✅ التحقق من انتهاء وقت الاختبار
       if (data.ends_at) {
         const now = new Date()
         const endTime = new Date(data.ends_at)
@@ -68,7 +65,6 @@ export default function ExamSolvePage({ params }) {
         }
       }
 
-      // ✅ جلب محاولة الطالب
       const attemptsRes = await fetch(`/api/student/attempts?examId=${examId}&student_id=${sId}`)
       const attemptsData = await attemptsRes.json()
 
@@ -81,7 +77,7 @@ export default function ExamSolvePage({ params }) {
         setAttempt(attemptsData)
 
         // ✅ جلب حالة طلب الاستكمال
-        const reentryRes = await fetch(`/api/reentry-requests?student_id=${sId}&exam_id=${examId}`)
+        const reentryRes = await fetch(`/api/reentry-requests/student?student_id=${sId}&exam_id=${examId}`)
         const reentryData = await reentryRes.json()
 
         if (reentryRes.ok && reentryData.length > 0) {
@@ -89,12 +85,10 @@ export default function ExamSolvePage({ params }) {
           setReentryStatus(latestRequest.status)
         }
 
-        // حساب الوقت المتبقي
         const elapsed = (Date.now() - new Date(attemptsData.started_at).getTime()) / 60000
         const remaining = data.duration_minutes + (attemptsData.extra_minutes || 0) - elapsed
         setTimeLeft(Math.max(0, Math.floor(remaining)))
 
-        // جلب الإجابات السابقة
         const answersRes = await fetch(`/api/student/answers?attemptId=${attemptsData.id}`)
         const answersData = await answersRes.json()
 
@@ -105,7 +99,6 @@ export default function ExamSolvePage({ params }) {
         setAnswers(answersMap)
 
       } else {
-        // ✅ إنشاء محاولة جديدة
         const createRes = await fetch('/api/student/attempts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -138,7 +131,6 @@ export default function ExamSolvePage({ params }) {
     })
   }
 
-  // ✅ طلب استكمال الاختبار
   const handleRequestReentry = async () => {
     setRequestingReentry(true)
     try {
@@ -193,7 +185,6 @@ export default function ExamSolvePage({ params }) {
     }
   }
 
-  // ✅ عد تنازلي للوقت
   useEffect(() => {
     if (timeLeft <= 0 || !attempt || attempt.status !== 'in_progress') return
 
@@ -252,22 +243,33 @@ export default function ExamSolvePage({ params }) {
               : 'تم إغلاق الاختبار. يمكنك طلب استكمال من المدرس.'}
           </p>
 
+          {/* ✅ حالة الطلب pending */}
           {reentryStatus === 'pending' && (
-            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mb-4">
-              <p className="text-yellow-800 font-bold">
-                ⏳ طلبك قيد المراجعة من قبل المدرس
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6 mb-4">
+              <div className="text-4xl mb-2 animate-pulse">⏳</div>
+              <p className="text-yellow-800 font-extrabold text-lg">
+                جاري مراجعة طلب استكمال الاختبار
+              </p>
+              <p className="text-yellow-700 text-sm font-bold mt-2">
+                تم إرسال طلبك إلى المدرس، في انتظار الموافقة
               </p>
             </div>
           )}
 
+          {/* ✅ حالة الطلب rejected */}
           {reentryStatus === 'rejected' && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
-              <p className="text-red-800 font-bold">
-                ❌ تم رفض طلب الاستكمال
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 mb-4">
+              <div className="text-4xl mb-2">❌</div>
+              <p className="text-red-800 font-extrabold text-lg">
+                تم رفض طلب الاستكمال
+              </p>
+              <p className="text-red-700 text-sm font-bold mt-2">
+                لا يمكنك الدخول للاختبار مرة أخرى
               </p>
             </div>
           )}
 
+          {/* ✅ زر طلب الاستكمال */}
           {!reentryStatus && (
             <button
               onClick={handleRequestReentry}
