@@ -6,6 +6,24 @@ import { db } from '@/db'
 import { exams, examQuestions, levels, groups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
+// ✅ دالة آمنة لتحويل النص لـ JSON
+function safeParseJson(value, fallback = []) {
+  if (value === null || value === undefined) return fallback
+  if (Array.isArray(value)) return value
+  if (typeof value === 'object') return value
+
+  try {
+    let parsed = JSON.parse(value)
+    // لو النتيجة string، جرب parse تاني
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed)
+    }
+    return parsed
+  } catch (e) {
+    return fallback
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -47,10 +65,16 @@ export async function GET(request) {
       .from(examQuestions)
       .where(eq(examQuestions.exam_id, examId))
 
-    // ✅ منع الـ caching
+    // ✅ تحويل options و correct_answers لـ Array حقيقي
+    const fixedQuestions = questions.map(q => ({
+      ...q,
+      options: safeParseJson(q.options, []),
+      correct_answers: safeParseJson(q.correct_answers, []),
+    }))
+
     const response = NextResponse.json({
       ...exam,
-      exam_questions: questions || []
+      exam_questions: fixedQuestions
     })
 
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
