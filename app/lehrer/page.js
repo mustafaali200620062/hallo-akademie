@@ -73,9 +73,9 @@ export default function LehrerPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="relative w-32 h-32 mx-auto">
-            <img 
-              src="/logo.png" 
-              alt="Loading" 
+            <img
+              src="/logo.png"
+              alt="Loading"
               className="w-32 h-32 object-contain animate-pulse"
             />
             <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-yellow-500 border-r-black animate-spin"></div>
@@ -96,15 +96,12 @@ export default function LehrerPage() {
 
   return (
     <div className="min-h-screen relative bg-custom flex flex-row">
-      {/* ✅ خلفية ثابتة مع بلور خفيف */}
       <div className="absolute inset-0 w-full h-full bg-custom"></div>
       <div className="absolute inset-0 w-full h-full bg-black/30 blur-overlay"></div>
 
-      {/* المحتوى الرئيسي */}
       <div className="flex-1 p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
         {activeTab === 'dashboard' && (
           <>
-            {/* بطاقات الإحصائيات */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 card-mobile">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
@@ -162,7 +159,6 @@ export default function LehrerPage() {
               </div>
             </div>
 
-            {/* قسم النشاطات */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 card-mobile">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
                 <h2 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-800">
@@ -249,6 +245,20 @@ export default function LehrerPage() {
           </div>
         )}
 
+        {activeTab === 'reentry' && (
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+            <div className="text-4xl mb-4">📩</div>
+            <h3 className="text-xl font-extrabold mb-2 text-gray-900">طلبات استكمال الاختبارات</h3>
+            <p className="font-bold text-gray-500">راجع طلبات الطلاب من هنا</p>
+            <Link
+              href="/lehrer/reentry-requests"
+              className="mt-4 inline-block bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors"
+            >
+              الذهاب إلى الطلبات ←
+            </Link>
+          </div>
+        )}
+
         {activeTab === 'results' && (
           <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
             <div className="text-4xl mb-4">📊</div>
@@ -283,9 +293,7 @@ export default function LehrerPage() {
         )}
       </div>
 
-      {/* القائمة الجانبية - تدرج ألوان علم ألمانيا (أحمر) */}
       <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
-        {/* الهيدر */}
         <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-lg shadow-red-500/25">
@@ -298,7 +306,6 @@ export default function LehrerPage() {
           </div>
         </div>
 
-        {/* المدرس */}
         <div className="p-6 border-b border-white/10 sidebar-user">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center text-2xl text-white font-extrabold shadow-lg shadow-red-500/25">
@@ -312,13 +319,12 @@ export default function LehrerPage() {
           <p className="text-sm font-bold text-white/40 mt-3">حالة المدرس مخفية</p>
         </div>
 
-        {/* قائمة التنقل */}
         <nav className="p-4 space-y-1.5">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'dashboard' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'dashboard'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -327,8 +333,8 @@ export default function LehrerPage() {
           <button
             onClick={() => setActiveTab('groups')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'groups' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'groups'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -337,8 +343,8 @@ export default function LehrerPage() {
           <button
             onClick={() => setActiveTab('exams')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'exams' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'exams'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -347,18 +353,28 @@ export default function LehrerPage() {
           <button
             onClick={() => setActiveTab('monitor')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'monitor' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'monitor'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
             <span className="text-xl">👀</span> متابعة الاختبارات
           </button>
           <button
+            onClick={() => setActiveTab('reentry')}
+            className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
+              activeTab === 'reentry'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
+                : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
+            }`}
+          >
+            <span className="text-xl">📩</span> طلبات الاستكمال
+          </button>
+          <button
             onClick={() => setActiveTab('results')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'results' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'results'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -367,8 +383,8 @@ export default function LehrerPage() {
           <button
             onClick={() => setActiveTab('lessons')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'lessons' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'lessons'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -377,8 +393,8 @@ export default function LehrerPage() {
           <button
             onClick={() => setActiveTab('forum')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'forum' 
-                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20' 
+              activeTab === 'forum'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -386,7 +402,6 @@ export default function LehrerPage() {
           </button>
         </nav>
 
-        {/* زر الخروج - Logout */}
         <div className="absolute bottom-0 w-72 p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {

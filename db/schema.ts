@@ -150,6 +150,21 @@ export const examAttempts = pgTable('exam_attempts', {
   updated_at: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
 })
 
+// ========== طلبات استكمال الاختبار ==========
+export const reentryRequests = pgTable('reentry_requests', {
+  id: text('id').primaryKey(),
+  attempt_id: text('attempt_id').references(() => examAttempts.id),
+  student_id: text('student_id').references(() => profiles.id),
+  exam_id: text('exam_id').references(() => exams.id),
+  status: text('status').default('pending'),
+  requested_at: timestamp('requested_at').default(sql`CURRENT_TIMESTAMP`),
+  reviewed_by: text('reviewed_by').references(() => profiles.id),
+  reviewed_at: timestamp('reviewed_at'),
+  notes: text('notes'),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updated_at: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
 // ========== إجابات الطلاب ==========
 export const studentAnswers = pgTable('student_answers', {
   id: text('id').primaryKey(),
