@@ -1,145 +1,105 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { db } from '@/db'
+import { exams, levels, groups, profiles } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
+// ✅ جلب جميع الاختبارات
 export async function GET(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const groupId = searchParams.get('groupId')
+    const levelId = searchParams.get('levelId')
 
-    let query = supabase
-      .from('exams')
-      .select(`
-        *,
-        levels (code, title),
-        groups (name),
-        creator:profiles!created_by (id, full_name)
-      `)
-      .order('created_at', { ascending: false })
+    let query = db
+      .select({
+        id: exams.id,
+        title: exams.title,
+        description: exams.description,
+        group_id: exams.group_id,
+        level_id: exams.level_id,
+        created_by: exams.created_by,
+        starts_at: exams.starts_at,
+        ends_at: exams.ends_at,
+        duration_minutes: exams.duration_minutes,
+        total_points: exams.total_points,
+        status: exams.status,
+        settings: exams.settings,
+        created_at: exams.created_at,
+        level_code: levels.code,
+        level_title: levels.title,
+        group_name: groups.name,
+        creator_name: profiles.full_name,
+      })
+      .from(exams)
+      .leftJoin(levels, eq(exams.level_id, levels.id))
+      .leftJoin(groups, eq(exams.group_id, groups.id))
+      .leftJoin(profiles, eq(exams.created_by, profiles.id))
+      .orderBy(desc(exams.created_at))
 
     if (groupId) {
-      query = query.eq('group_id', groupId)
+      query = query.where(eq(exams.group_id, groupId))
+    } else if (levelId) {
+      query = query.where(eq(exams.level_id, levelId))
     }
 
-    const { data: exams, error } = await query
+    const allExams = await query
 
-    if (error) throw error
-
-    return NextResponse.json(exams || [])
+    return NextResponse.json(allExams || [])
   } catch (error) {
-    console.error('Error in /api/exams:', error)
+    console.error('❌ Error fetching exams:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ إنشاء اختبار جديد
 export async function POST(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { title, description, group_id, level_id, starts_at, ends_at, duration_minutes, total_points } = body
+    const {
+      title,
+      description,
+      group_id,
+      level_id,
+      starts_at,
+      ends_at,
+      duration_minutes,
+      total_points,
+      created_by
+    } = body
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Lehrer'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!title || !group_id || !level_id || !starts_at || !ends_at) {
+      return NextResponse.json({ error: 'All required fields must be provided' }, { status: 400 })
     }
 
-    const { data: exam, error } = await supabase
-      .from('exams')
-      .insert({
-        title,
-        description: description || '',
-        group_id,
-        level_id,
-        created_by: session.user.id,
-        starts_at,
-        ends_at,
-        duration_minutes: parseInt(duration_minutes),
-        total_points: parseFloat(total_points) || 0,
-        status: 'scheduled'
-      })
-      .select()
-      .single()
+    const [newExam] = await db.insert(exams).values({
+      id: crypto.randomUUID(),
+      title,
+      description: description || '',
+      group_id,
+      level_id,
+      created_by: created_by || null,
+      starts_at: new Date(starts_at),
+      ends_at: new Date(ends_at),
+      duration_minutes: parseInt(duration_minutes),
+      total_points: parseFloat(total_points) || 0,
+      status: 'scheduled',
+      created_at: new Date(),
+    }).returning()
 
-    if (error) throw error
-
-    return NextResponse.json(exam)
+    return NextResponse.json({
+      success: true,
+      id: newExam.id,
+      exam: newExam
+    })
   } catch (error) {
-    console.error('Error in /api/exams POST:', error)
+    console.error('❌ Error creating exam:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
+// ✅ حذف اختبار
 export async function DELETE(request) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -147,26 +107,11 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role_id, roles(name)')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !['Eigentümer', 'Lehrer'].includes(profile.roles.name)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const { error } = await supabase
-      .from('exams')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await db.delete(exams).where(eq(exams.id, id))
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error in /api/exams DELETE:', error)
+    console.error('❌ Error deleting exam:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
