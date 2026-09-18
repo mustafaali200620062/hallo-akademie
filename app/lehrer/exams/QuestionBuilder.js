@@ -1,6 +1,10 @@
 'use client'
 
+import { useState } from 'react'
+
 export default function QuestionBuilder({ question, index, onUpdate, onDelete }) {
+  const [uploading, setUploading] = useState(false)
+
   const addOption = () => {
     const newOptions = [...(question.options || []), '']
     onUpdate(index, 'options', newOptions)
@@ -18,7 +22,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
     onUpdate(index, 'options', newOptions)
   }
 
-  // ✅ تعيين الإجابة الصحيحة (متعدد أو مفرد)
   const toggleCorrect = (optIndex) => {
     let correct = [...(question.correct_answers || [])]
     if (correct.includes(optIndex)) {
@@ -29,9 +32,12 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
     onUpdate(index, 'correct_answers', correct)
   }
 
+  // ✅ رفع الملف فعلياً على R2
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0]
     if (!file) return
+
+    setUploading(true)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -42,14 +48,28 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         method: 'POST',
         body: formData,
       })
+
       const data = await res.json()
-      if (res.ok) {
-        onUpdate(index, 'media_url', data.url)
-        onUpdate(index, 'media_type', type)
+
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل الرفع')
       }
+
+      onUpdate(index, 'media_url', data.url)
+      onUpdate(index, 'media_type', type)
     } catch (error) {
       console.error('Error uploading:', error)
+      alert('فشل رفع الملف: ' + error.message)
+    } finally {
+      setUploading(false)
     }
+  }
+
+  // ✅ حذف الملف المرفوع
+  const handleRemoveMedia = () => {
+    if (!confirm('هل تريد حذف الملف المرفوع؟')) return
+    onUpdate(index, 'media_url', '')
+    onUpdate(index, 'media_type', '')
   }
 
   return (
@@ -85,21 +105,42 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         />
       </div>
 
-      {/* رفع صورة/صوت */}
+      {/* رفع صورة/صوت - بشكل فعلي */}
       {(question.question_type === 'image' || question.question_type === 'audio') && (
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+        <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <label className="block text-sm font-bold text-gray-700 mb-2">
             {question.question_type === 'image' ? '🖼️ ارفع صورة' : '🎵 ارفع مقطع صوتي'}
           </label>
-          <input
-            type="file"
-            accept={question.question_type === 'image' ? 'image/*' : 'audio/*'}
-            onChange={(e) => handleFileUpload(e, question.question_type)}
-            className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg"
-          />
-          {question.media_url && (
-            <p className="text-xs text-green-600 font-bold mt-2">
-              ✅ تم الرفع
+
+          {!question.media_url ? (
+            <input
+              type="file"
+              accept={question.question_type === 'image' ? 'image/*' : 'audio/*'}
+              onChange={(e) => handleFileUpload(e, question.question_type)}
+              disabled={uploading}
+              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:font-bold hover:file:bg-blue-700 disabled:opacity-50"
+            />
+          ) : (
+            <div className="flex items-center justify-between bg-green-50 border border-green-300 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">✅</span>
+                <span className="text-green-800 font-bold text-sm">
+                  {question.question_type === 'image' ? 'تم رفع الصورة' : 'تم رفع المقطع الصوتي'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveMedia}
+                className="text-red-600 hover:text-red-800 font-bold text-sm"
+              >
+                🗑️ حذف
+              </button>
+            </div>
+          )}
+
+          {uploading && (
+            <p className="text-sm text-blue-600 font-bold mt-2 animate-pulse">
+              ⏳ جاري الرفع...
             </p>
           )}
         </div>
@@ -118,7 +159,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         />
       </div>
 
-      {/* الخيارات (للاختيار من متعدد والصورة والصوت) */}
+      {/* الخيارات */}
       {question.question_type !== 'matching' && (
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700">
