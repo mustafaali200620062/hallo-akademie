@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { exams, levels, groups, profiles } from '@/db/schema'
+import {
+  exams,
+  levels,
+  groups,
+  profiles,
+  examAttempts,
+  examQuestions,
+  reentryRequests,
+  studentAnswers,
+  studentErrors
+} from '@/db/schema'
 import { eq, desc } from 'drizzle-orm'
 
 // ✅ جلب جميع الاختبارات
@@ -119,7 +129,7 @@ export async function PUT(request) {
   }
 }
 
-// ✅ حذف اختبار
+// ✅ حذف اختبار (مع كل البيانات المرتبطة)
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -129,6 +139,28 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Exam ID required' }, { status: 400 })
     }
 
+    // 1. حذف طلبات الاستكمال المرتبطة بالاختبار
+    await db.delete(reentryRequests).where(eq(reentryRequests.exam_id, id))
+
+    // 2. جلب كل محاولات الاختبار
+    const attempts = await db
+      .select()
+      .from(examAttempts)
+      .where(eq(examAttempts.exam_id, id))
+
+    // 3. حذف إجابات الطلاب وأخطائهم المرتبطة بالمحاولات
+    for (const attempt of attempts) {
+      await db.delete(studentAnswers).where(eq(studentAnswers.attempt_id, attempt.id))
+      await db.delete(studentErrors).where(eq(studentErrors.attempt_id, attempt.id))
+    }
+
+    // 4. حذف محاولات الاختبار
+    await db.delete(examAttempts).where(eq(examAttempts.exam_id, id))
+
+    // 5. حذف أسئلة الاختبار
+    await db.delete(examQuestions).where(eq(examQuestions.exam_id, id))
+
+    // 6. حذف الاختبار نفسه
     await db.delete(exams).where(eq(exams.id, id))
 
     return NextResponse.json({ success: true })
