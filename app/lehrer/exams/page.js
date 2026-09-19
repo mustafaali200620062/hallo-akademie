@@ -94,6 +94,7 @@ export default function LehrerExamsPage() {
     const newQuestions = [...questions]
     newQuestions[index] = { ...newQuestions[index], [field]: value }
     setQuestions(newQuestions)
+    console.log(`✏️ Updated Q${index + 1} field "${field}":`, value)
   }
 
   const addQuestion = (type) => {
@@ -111,6 +112,7 @@ export default function LehrerExamsPage() {
       baseQuestion.options = [{ left: '', right: '' }]
     }
     setQuestions([...questions, baseQuestion])
+    console.log(`➕ Added new question of type: ${type}`)
   }
 
   const handleSubmit = async (e) => {
@@ -162,32 +164,33 @@ export default function LehrerExamsPage() {
       // ✅ 2. إضافة الأسئلة
       if (questions.length > 0) {
         console.log(`📝 Adding ${questions.length} questions...`)
-        
+        console.log('🔍 Questions state:', JSON.stringify(questions, null, 2))
+
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
-          
-          console.log(`📝 Saving question ${i + 1}:`, {
-            type: q.question_type,
-            media_url: q.media_url,
-            options: q.options
-          })
+
+          console.log(`🔍 Question ${i + 1} full data:`, JSON.stringify(q, null, 2))
+
+          const payload = {
+            exam_id: examId,
+            question_order: i + 1,
+            question_type: q.question_type,
+            question_text: q.question_text,
+            media_url: q.media_url || null,
+            media_type: q.media_type || null,
+            options: JSON.stringify(q.options),
+            correct_answers: JSON.stringify(q.correct_answers || []),
+            correct_answer: JSON.stringify(q.correct_answers || []),
+            points: q.points,
+            explanation: q.explanation || '',
+          }
+
+          console.log(`📤 Sending payload for Q${i + 1}:`, payload)
 
           const qRes = await fetch('/api/exam-questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              exam_id: examId,
-              question_order: i + 1,
-              question_type: q.question_type,
-              question_text: q.question_text,
-              media_url: q.media_url || null,
-              media_type: q.media_type || null,
-              options: JSON.stringify(q.options),
-              correct_answers: JSON.stringify(q.correct_answers || []),
-              correct_answer: JSON.stringify(q.correct_answers || []),
-              points: q.points,
-              explanation: q.explanation || '',
-            })
+            body: JSON.stringify(payload)
           })
 
           const qData = await qRes.json()
@@ -457,7 +460,6 @@ export default function LehrerExamsPage() {
                 </div>
               </div>
 
-              {/* الأسئلة */}
               <div className="border-t-2 border-gray-200 pt-4">
                 <label className="block text-sm font-bold text-gray-700 mb-3">
                   الأسئلة ({questions.length})
@@ -484,7 +486,10 @@ export default function LehrerExamsPage() {
                     question={q}
                     index={idx}
                     onUpdate={updateQuestion}
-                    onDelete={(i) => setQuestions(questions.filter((_, index) => index !== i))}
+                    onDelete={(i) => {
+                      setQuestions(questions.filter((_, index) => index !== i))
+                      console.log(`🗑️ Deleted question ${i + 1}`)
+                    }}
                   />
                 ))}
 
