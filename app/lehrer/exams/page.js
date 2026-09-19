@@ -127,6 +127,8 @@ export default function LehrerExamsPage() {
       const endDay = formData.ends_at_day.padStart(2, '0')
       const endDate = `${formData.ends_at_year}-${endMonth}-${endDay}T${to24Hour(formData.ends_at_hour, formData.ends_at_ampm)}:${formData.ends_at_minute.padStart(2, '0')}:00`
 
+      // ✅ 1. إنشاء الاختبار
+      console.log('📝 Creating exam...')
       const response = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,32 +146,58 @@ export default function LehrerExamsPage() {
       })
 
       const data = await response.json()
+      console.log('📥 Exam response:', data)
 
       if (!response.ok) {
-        throw new Error(data.error || 'حدث خطأ')
+        throw new Error(data.error || 'حدث خطأ في إنشاء الاختبار')
       }
 
       const examId = data.id || data.exam?.id
+      console.log('📝 Exam ID:', examId)
 
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i]
-        await fetch('/api/exam-questions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            exam_id: examId,
-            question_order: i + 1,
-            question_type: q.question_type,
-            question_text: q.question_text,
-            media_url: q.media_url || null,
-            media_type: q.media_type || null,
-            options: JSON.stringify(q.options),
-            correct_answers: JSON.stringify(q.correct_answers || []),
-            correct_answer: JSON.stringify(q.correct_answers || []),
-            points: q.points,
-            explanation: q.explanation || '',
+      if (!examId) {
+        throw new Error('لم يتم إنشاء الاختبار بشكل صحيح')
+      }
+
+      // ✅ 2. إضافة الأسئلة
+      if (questions.length > 0) {
+        console.log(`📝 Adding ${questions.length} questions...`)
+        
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i]
+          
+          console.log(`📝 Saving question ${i + 1}:`, {
+            type: q.question_type,
+            media_url: q.media_url,
+            options: q.options
           })
-        })
+
+          const qRes = await fetch('/api/exam-questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              exam_id: examId,
+              question_order: i + 1,
+              question_type: q.question_type,
+              question_text: q.question_text,
+              media_url: q.media_url || null,
+              media_type: q.media_type || null,
+              options: JSON.stringify(q.options),
+              correct_answers: JSON.stringify(q.correct_answers || []),
+              correct_answer: JSON.stringify(q.correct_answers || []),
+              points: q.points,
+              explanation: q.explanation || '',
+            })
+          })
+
+          const qData = await qRes.json()
+          console.log(`📥 Question ${i + 1} response:`, qData)
+
+          if (!qRes.ok) {
+            console.error(`❌ Question ${i + 1} failed:`, qData.error)
+            throw new Error(`فشل حفظ السؤال ${i + 1}: ${qData.error || 'حدث خطأ'}`)
+          }
+        }
       }
 
       setSuccess('✅ تم إنشاء الاختبار بنجاح!')
@@ -187,6 +215,7 @@ export default function LehrerExamsPage() {
       setTimeout(() => setSuccess(null), 3000)
 
     } catch (error) {
+      console.error('❌ Error:', error)
       setError(error.message)
     }
   }
@@ -347,9 +376,8 @@ export default function LehrerExamsPage() {
                 </div>
               </div>
 
-              {/* تاريخ البدء */}
               <div className="bg-gray-50 p-4 rounded-lg">
-                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ البدء</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ البدء (Start Date)</label>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   <input type="number" min="2024" max="2100" required placeholder="Year"
                     value={formData.starts_at_year}
@@ -380,9 +408,8 @@ export default function LehrerExamsPage() {
                 </select>
               </div>
 
-              {/* تاريخ الانتهاء */}
               <div className="bg-gray-50 p-4 rounded-lg">
-                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ الانتهاء</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ الانتهاء (End Date)</label>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   <input type="number" min="2024" max="2100" required placeholder="Year"
                     value={formData.ends_at_year}
