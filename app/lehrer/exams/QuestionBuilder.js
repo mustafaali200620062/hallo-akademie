@@ -1,11 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function QuestionBuilder({ question, index, onUpdate, onDelete, examId, onSaved }) {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(question.id ? true : false)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [uploadError, setUploadError] = useState(null)
+
+  // ✅ جلب Signed URL للمعاينة
+  useEffect(() => {
+    const fetchPreviewUrl = async () => {
+      if (question.media_url && (question.question_type === 'image' || question.question_type === 'audio')) {
+        try {
+          // لو الرابط مش كامل، نعمل Signed URL من الـ API
+          const res = await fetch('/api/files/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: question.media_url })
+          })
+          const data = await res.json()
+          if (res.ok && data.url) {
+            setPreviewUrl(data.url)
+          }
+        } catch (error) {
+          console.error('Error getting preview URL:', error)
+        }
+      }
+    }
+    fetchPreviewUrl()
+  }, [question.media_url, question.question_type])
 
   const addOption = () => {
     const newOptions = [...(question.options || []), '']
@@ -43,6 +68,14 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
     const file = e.target.files[0]
     if (!file) return
 
+    setUploadError(null)
+
+    // ✅ التحقق من الحجم
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError(`حجم الملف كبير جداً (${(file.size / 1024 / 1024).toFixed(1)} MB). الحد الأقصى 10 MB`)
+      return
+    }
+
     setUploading(true)
 
     const formData = new FormData()
@@ -66,7 +99,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
       setSaved(false)
     } catch (error) {
       console.error('Error uploading:', error)
-      alert('فشل رفع الملف: ' + error.message)
+      setUploadError('فشل رفع الملف: ' + error.message)
     } finally {
       setUploading(false)
     }
@@ -76,12 +109,12 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
     if (!confirm('هل تريد حذف الملف المرفوع؟')) return
     onUpdate(index, 'media_url', '')
     onUpdate(index, 'media_type', '')
+    setPreviewUrl(null)
     setSaved(false)
   }
 
-  // ✅ حفظ السؤال مباشرة
+  // ✅ حفظ السؤال
   const handleSaveQuestion = async () => {
-    // التحقق
     if (!question.question_text?.trim()) {
       alert('يرجى كتابة نص السؤال')
       return
@@ -189,11 +222,11 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
         />
       </div>
 
-      {/* رفع صورة/صوت */}
+      {/* رفع صورة/صوت + معاينة */}
       {(question.question_type === 'image' || question.question_type === 'audio') && (
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <label className="block text-sm font-bold text-gray-700 mb-2">
-            {question.question_type === 'image' ? '🖼️ ارفع صورة' : '🎵 ارفع مقطع صوتي'}
+            {question.question_type === 'image' ? '🖼️ ارفع صورة (حد أقصى 10 ميجا)' : '🎵 ارفع مقطع صوتي (حد أقصى 10 ميجا)'}
           </label>
 
           {!question.media_url ? (
@@ -205,20 +238,48 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
               className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:font-bold hover:file:bg-blue-700 disabled:opacity-50"
             />
           ) : (
-            <div className="flex items-center justify-between bg-green-50 border border-green-300 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">✅</span>
-                <span className="text-green-800 font-bold text-sm">
-                  {question.question_type === 'image' ? 'تم رفع الصورة' : 'تم رفع المقطع الصوتي'}
-                </span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-green-50 border border-green-300 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">✅</span>
+                  <span className="text-green-800 font-bold text-sm">
+                    {question.question_type === 'image' ? 'تم رفع الصورة' : 'تم رفع المقطع الصوتي'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveMedia}
+                  className="text-red-600 hover:text-red-800 font-bold text-sm"
+                >
+                  🗑️ حذف
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleRemoveMedia}
-                className="text-red-600 hover:text-red-800 font-bold text-sm"
-              >
-                🗑️ حذف
-              </button>
+
+              {/* ✅ معاينة الصورة */}
+              {question.question_type === 'image' && previewUrl && (
+                <div className="bg-white border-2 border-green-300 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-600 mb-2">📸 معاينة الصورة:</p>
+                  <img
+                    src={previewUrl}
+                    alt="معاينة"
+                    className="max-w-full max-h-60 rounded-lg mx-auto shadow-md object-contain"
+                    onError={(e) => {
+                      e.target.parentElement.innerHTML = '<p class="text-red-500 text-sm font-bold text-center">⚠️ تعذر تحميل الصورة</p>'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* ✅ معاينة الصوت */}
+              {question.question_type === 'audio' && previewUrl && (
+                <div className="bg-white border-2 border-green-300 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-600 mb-2">🎵 معاينة المقطع الصوتي:</p>
+                  <audio controls className="w-full">
+                    <source src={previewUrl} type="audio/mpeg" />
+                    متصفحك لا يدعم الصوت
+                  </audio>
+                </div>
+              )}
             </div>
           )}
 
@@ -226,6 +287,12 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
             <p className="text-sm text-blue-600 font-bold mt-2 animate-pulse">
               ⏳ جاري الرفع...
             </p>
+          )}
+
+          {uploadError && (
+            <div className="mt-2 bg-red-50 border border-red-300 rounded-lg p-2">
+              <p className="text-sm text-red-700 font-bold">❌ {uploadError}</p>
+            </div>
           )}
         </div>
       )}
@@ -362,7 +429,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete, e
         />
       </div>
 
-      {/* ✅ زر حفظ السؤال */}
+      {/* زر حفظ السؤال */}
       <div className="mt-4 pt-3 border-t border-gray-200">
         <button
           type="button"
