@@ -65,7 +65,6 @@ export default function ExamSolvePage({ params }) {
 
       setExam(data)
 
-      // ✅ بنتحقق من ends_at بس لو الاختبار مش active
       if (data.status !== 'active' && data.ends_at) {
         const now = new Date()
         const endTime = new Date(data.ends_at)
@@ -173,7 +172,7 @@ export default function ExamSolvePage({ params }) {
   }
 
   const handleSubmit = async () => {
-    if (!confirm('هل أنت متأكد من تسليم الاختبار؟')) return
+    if (!confirm('Sind Sie sicher, dass Sie die Prüfung abgeben möchten?')) return
     if (submittedRef.current) return
     submittedRef.current = true
     setSubmitted(true)
@@ -216,7 +215,7 @@ export default function ExamSolvePage({ params }) {
           attempt_id: attempt.id,
           student_id: studentId,
           exam_id: examId,
-          notes: 'الطالب يطلب استكمال الاختبار'
+          notes: 'Student möchte die Prüfung fortsetzen'
         })
       })
 
@@ -265,7 +264,7 @@ export default function ExamSolvePage({ params }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-2xl font-bold">جاري التحميل...</div>
+        <div className="text-2xl font-bold">Laden...</div>
       </div>
     )
   }
@@ -280,7 +279,7 @@ export default function ExamSolvePage({ params }) {
             onClick={() => router.push('/student/exams')}
             className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
           >
-            ← العودة للاختبارات
+            ← Zurück zu den Prüfungen
           </button>
         </div>
       </div>
@@ -292,14 +291,13 @@ export default function ExamSolvePage({ params }) {
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="text-6xl mb-4 animate-spin">⏳</div>
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">جاري التسليم...</h1>
-          <p className="text-gray-600 font-bold">يرجى الانتظار</p>
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Wird abgegeben...</h1>
+          <p className="text-gray-600 font-bold">Bitte warten</p>
         </div>
       </div>
     )
   }
 
-  // ✅ الشرط الجديد: لا نقفل إلا لو الاختبار مش active، أو المحاولة اتقفلت، أو الوقت خلص
   const shouldBlock = (
     attempt?.status === 'locked' ||
     (attempt?.status === 'in_progress' && timeLeft <= 0) ||
@@ -312,22 +310,22 @@ export default function ExamSolvePage({ params }) {
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-md w-full text-center">
           <div className="text-5xl md:text-6xl mb-4">⏰</div>
           <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-2">
-            {examEnded ? 'انتهى وقت الاختبار' : 'الاختبار مغلق'}
+            {examEnded ? 'Prüfungszeit abgelaufen' : 'Prüfung geschlossen'}
           </h1>
           <p className="text-gray-600 mb-6 font-medium text-sm md:text-base">
             {examEnded
-              ? 'انتهى الوقت المخصص لهذا الاختبار.'
-              : 'تم إغلاق الاختبار. يمكنك طلب استكمال من المدرس.'}
+              ? 'Die Zeit für diese Prüfung ist abgelaufen.'
+              : 'Die Prüfung wurde geschlossen. Sie können die Fortsetzung beantragen.'}
           </p>
 
           {reentryStatus === 'pending' && (
             <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 md:p-6 mb-4">
               <div className="text-4xl mb-2 animate-pulse">⏳</div>
               <p className="text-yellow-800 font-extrabold text-base md:text-lg">
-                جاري مراجعة طلب استكمال الاختبار
+                Fortsetzungsantrag wird geprüft
               </p>
               <p className="text-yellow-700 text-xs md:text-sm font-bold mt-2">
-                في انتظار موافقة المدرس
+                Warten auf Genehmigung des Lehrers
               </p>
             </div>
           )}
@@ -335,7 +333,7 @@ export default function ExamSolvePage({ params }) {
           {reentryStatus === 'rejected' && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 md:p-6 mb-4">
               <div className="text-4xl mb-2">❌</div>
-              <p className="text-red-800 font-extrabold text-base md:text-lg">تم رفض طلب الاستكمال</p>
+              <p className="text-red-800 font-extrabold text-base md:text-lg">Antrag abgelehnt</p>
             </div>
           )}
 
@@ -345,7 +343,7 @@ export default function ExamSolvePage({ params }) {
               disabled={requestingReentry}
               className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 mb-3"
             >
-              {requestingReentry ? '⏳ جاري الإرسال...' : '📩 طلب استكمال الاختبار'}
+              {requestingReentry ? '⏳ Wird gesendet...' : '📩 Fortsetzung beantragen'}
             </button>
           )}
 
@@ -353,7 +351,7 @@ export default function ExamSolvePage({ params }) {
             onClick={() => router.push('/student/exams')}
             className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-300 transition-colors"
           >
-            ← العودة للاختبارات
+            ← Zurück zu den Prüfungen
           </button>
         </div>
       </div>
@@ -363,7 +361,7 @@ export default function ExamSolvePage({ params }) {
   if (!exam || !attempt) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl font-bold">الاختبار غير موجود</div>
+        <div className="text-2xl font-bold">Prüfung nicht gefunden</div>
       </div>
     )
   }
@@ -375,20 +373,21 @@ export default function ExamSolvePage({ params }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* ✅ شريط علوي - ثابت */}
       <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors`}>
         <div className="max-w-4xl mx-auto px-3 md:px-4 py-2 md:py-3">
           <div className="flex justify-between items-center mb-2">
             <div className="flex-1 min-w-0">
-              <h1 className="text-sm md:text-lg font-bold truncate">{exam.title}</h1>
-              <p className="text-[10px] md:text-xs opacity-80 font-bold">
-                {questions.length} سؤال • {exam.total_points} نقطة
+              <h1 className="text-sm md:text-lg font-bold truncate" dir="ltr">{exam.title}</h1>
+              <p className="text-[10px] md:text-xs opacity-80 font-bold" dir="ltr">
+                {questions.length} Fragen • {exam.total_points} Punkte
               </p>
             </div>
             <div className="text-center ml-2">
-              <div className={`text-xl md:text-3xl font-extrabold ${isTimeWarning ? 'animate-pulse' : ''}`}>
-                ⏱️ {timeLeft}
+              <div className={`text-xl md:text-3xl font-extrabold ${isTimeWarning ? 'animate-pulse' : ''}`} dir="ltr">
+                ⏱️ {timeLeft} Min
               </div>
-              <div className="text-[10px] md:text-xs font-bold opacity-80">دقيقة</div>
+              <div className="text-[10px] md:text-xs font-bold opacity-80">verbleibend</div>
             </div>
           </div>
           <div className="w-full bg-white/20 rounded-full h-1.5 md:h-2 overflow-hidden">
@@ -402,8 +401,8 @@ export default function ExamSolvePage({ params }) {
 
       {isTimeWarning && (
         <div className="bg-red-100 border-b-2 border-red-400 py-2 px-3 md:px-4 text-center">
-          <p className="text-red-700 font-extrabold text-xs md:text-sm">
-            ⚠️ باقي أقل من 5 دقائق! سيتم التسليم تلقائياً
+          <p className="text-red-700 font-extrabold text-xs md:text-sm" dir="ltr">
+            ⚠️ Weniger als 5 Minuten! Automatische Abgabe erfolgt.
           </p>
         </div>
       )}
@@ -429,43 +428,53 @@ export default function ExamSolvePage({ params }) {
 
               return (
                 <div key={question.id} className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
+                  {/* ✅ رأس السؤال */}
                   <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200">
                     <div className="flex items-center gap-2 md:gap-3">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-extrabold shadow-md text-sm md:text-base">
                         {index + 1}
                       </div>
-                      <h3 className="text-sm md:text-lg font-bold text-gray-800">
-                        {question.question_type === 'multiple_choice' ? 'اختيار من متعدد' :
-                         question.question_type === 'matching' ? 'مطابقة' :
-                         question.question_type === 'image' ? 'صورة' :
-                         question.question_type === 'audio' ? 'مقطع صوتي' : 'نص'}
-                      </h3>
+                      <div>
+                        <div className="text-sm md:text-base font-bold text-gray-800" dir="ltr">
+                          {question.question_type === 'multiple_choice' ? 'Multiple Choice' :
+                           question.question_type === 'matching' ? 'Zuordnung' :
+                           question.question_type === 'image' ? 'Bild' :
+                           question.question_type === 'audio' ? 'Hörverstehen' : 'Text'}
+                        </div>
+                      </div>
                     </div>
-                    <span className="px-2 md:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs md:text-sm font-extrabold whitespace-nowrap">
-                      {question.points} نقطة
+                    <span className="px-2 md:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs md:text-sm font-extrabold whitespace-nowrap" dir="ltr">
+                      {question.points} {question.points === 1 ? 'Punkt' : 'Punkte'}
                     </span>
                   </div>
 
-                  <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed">{question.question_text}</p>
+                  {/* ✅ نص السؤال */}
+                  <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">{question.question_text}</p>
 
+                  {/* ✅ الصورة - تحت رأس السؤال مباشرة */}
                   {question.question_type === 'image' && question.media_url && (
-                    <div className="mb-4 md:mb-5 flex justify-center">
+                    <div className="mb-5 flex justify-center bg-gray-50 rounded-xl p-3 md:p-4">
                       <img
                         src={question.media_url}
-                        alt="سؤال"
-                        className="max-w-full max-h-60 md:max-h-96 rounded-xl shadow-md object-contain"
-                        onError={(e) => { e.target.style.display = 'none' }}
+                        alt="Frage"
+                        className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
+                        onError={(e) => {
+                          e.target.parentElement.innerHTML = '<div class="text-red-500 font-bold text-center">⚠️ Bild konnte nicht geladen werden</div>'
+                        }}
                       />
                     </div>
                   )}
 
+                  {/* ✅ الصوت - تحت رأس السؤال مباشرة */}
                   {question.question_type === 'audio' && question.media_url && (
-                    <div className="mb-4 md:mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
+                    <div className="mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg md:text-xl">
                           🎵
                         </div>
-                        <span className="font-bold text-blue-800 text-sm md:text-base">اسمع المقطع الصوتي</span>
+                        <span className="font-bold text-blue-800 text-sm md:text-base" dir="ltr">
+                          Hören Sie sich die Audiodatei an
+                        </span>
                       </div>
                       <audio
                         controls
@@ -474,17 +483,18 @@ export default function ExamSolvePage({ params }) {
                         onContextMenu={(e) => e.preventDefault()}
                       >
                         <source src={question.media_url} type="audio/mpeg" />
-                        متصفحك لا يدعم الصوت
+                        Ihr Browser unterstützt kein Audio
                       </audio>
                     </div>
                   )}
 
+                  {/* ✅ خيارات الاختيار من متعدد */}
                   {question.question_type === 'multiple_choice' && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
-                          <p className="text-blue-800 text-xs md:text-sm font-bold">
-                            ℹ️ يمكنك اختيار أكثر من إجابة صحيحة
+                          <p className="text-blue-800 text-xs md:text-sm font-bold" dir="ltr">
+                            ℹ️ Mehrere richtige Antworten möglich
                           </p>
                         </div>
                       )}
@@ -510,7 +520,7 @@ export default function ExamSolvePage({ params }) {
                               onChange={() => handleAnswer(question.id, option, isMultiple)}
                               className="w-4 h-4 md:w-5 md:h-5 text-green-600 focus:ring-green-500 flex-shrink-0"
                             />
-                            <span className={`font-bold text-sm md:text-base ${isChecked ? 'text-green-800' : 'text-gray-700'}`}>
+                            <span className={`font-bold text-sm md:text-base ${isChecked ? 'text-green-800' : 'text-gray-700'}`} dir="ltr">
                               {option}
                             </span>
                           </label>
@@ -519,22 +529,25 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
+                  {/* ✅ سؤال نصي */}
                   {question.question_type === 'text' && (
                     <textarea
                       value={answers[question.id] || ''}
                       onChange={(e) => handleAnswer(question.id, e.target.value)}
                       className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-gray-900 font-medium text-sm md:text-base"
                       rows="3"
-                      placeholder="اكتب إجابتك هنا..."
+                      placeholder="Schreiben Sie Ihre Antwort hier..."
+                      dir="ltr"
                     />
                   )}
 
+                  {/* ✅ سؤال المطابقة */}
                   {question.question_type === 'matching' && (
                     <div className="space-y-2 md:space-y-3">
                       {options?.map((pair, i) => (
                         <div key={i} className="grid grid-cols-2 gap-2 md:gap-3">
                           <div className="p-2 md:p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center flex items-center justify-center">
-                            <span className="font-bold text-blue-800 text-xs md:text-sm">{pair.left}</span>
+                            <span className="font-bold text-blue-800 text-xs md:text-sm" dir="ltr">{pair.left}</span>
                           </div>
                           <input
                             type="text"
@@ -547,7 +560,8 @@ export default function ExamSolvePage({ params }) {
                               })
                             }}
                             className="p-2 md:p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
-                            placeholder="الإجابة..."
+                            placeholder="Antwort..."
+                            dir="ltr"
                           />
                         </div>
                       ))}
@@ -558,16 +572,17 @@ export default function ExamSolvePage({ params }) {
             })}
           </div>
 
+          {/* ✅ زر التسليم بالألماني */}
           <div className="mt-6 md:mt-8 mb-6 md:mb-8">
             <button
               type="submit"
               disabled={submitting}
               className="w-full py-3 md:py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-base md:text-xl font-extrabold rounded-xl md:rounded-2xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
             >
-              {submitting ? '⏳ جاري التسليم...' : '✅ تسليم الاختبار'}
+              {submitting ? '⏳ Wird abgegeben...' : '✅ Prüfung abgeben'}
             </button>
-            <p className="text-center text-gray-500 text-[10px] md:text-xs font-bold mt-2 md:mt-3">
-              ⚠️ بعد التسليم لا يمكنك العودة للاختبار
+            <p className="text-center text-gray-500 text-[10px] md:text-xs font-bold mt-2 md:mt-3" dir="ltr">
+              ⚠️ Nach der Abgabe können Sie nicht zurückkehren
             </p>
           </div>
         </form>

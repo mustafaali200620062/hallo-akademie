@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { exams, examAttempts, groupStudents, levels, groups, examQuestions } from '@/db/schema'
@@ -12,6 +13,23 @@ function shuffleArray(array) {
     ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
+}
+
+// ✅ دالة آمنة لتحويل النص لـ JSON
+function safeParseJson(value, fallback = []) {
+  if (value === null || value === undefined) return fallback
+  if (Array.isArray(value)) return value
+  if (typeof value === 'object') return value
+
+  try {
+    let parsed = JSON.parse(value)
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed)
+    }
+    return parsed
+  } catch (e) {
+    return fallback
+  }
 }
 
 export async function GET(request) {
@@ -64,34 +82,40 @@ export async function GET(request) {
 
       const shuffledQuestions = shuffleArray(questions || [])
 
-      // ✅ تحويل media_url لـ Signed URL
+      // ✅ تحويل media_url لـ Signed URL + parse options
       const shuffledWithOptions = await Promise.all(
         shuffledQuestions.map(async (q) => {
-          let shuffledOpts = q.options
-          try {
-            const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
-            if (Array.isArray(opts) && opts.length > 0 && q.question_type !== 'matching') {
-              shuffledOpts = JSON.stringify(shuffleArray(opts))
-            }
-          } catch (e) {
-            shuffledOpts = q.options
+          // ✅ parse options
+          let parsedOptions = safeParseJson(q.options, [])
+          let parsedCorrectAnswers = safeParseJson(q.correct_answers, [])
+
+          // ✅ shuffle options (مش لسؤال المطابقة)
+          if (Array.isArray(parsedOptions) && parsedOptions.length > 0 && q.question_type !== 'matching') {
+            parsedOptions = shuffleArray(parsedOptions)
           }
 
-          // ✅ لو في media_url، نعمل Signed URL
-          let signedMediaUrl = q.media_url
+          // ✅ Signed URL للوسائط
+          let signedMediaUrl = null
           if (q.media_url && (q.question_type === 'image' || q.question_type === 'audio')) {
             try {
-              // لو الـ URL مش كامل (مش بيبدأ بـ http)، نعمل signed URL
-              if (!q.media_url.startsWith('http')) {
-                signedMediaUrl = await getFileUrl(q.media_url, 3600)
+              // لو الرابط مش كامل (مش بيبدأ بـ http)، نعمل signed URL
+              if (q.media_url.startsWith('http')) {
+                signedMediaUrl = q.media_url
+              } else {
+                signedMediaUrl = await getFileUrl(q.media_url, 7200) // صالح لمدة ساعتين
               }
             } catch (error) {
-              console.error('Error signing media URL:', error)
-              signedMediaUrl = q.media_url
+              console.error('Error signing media URL for question', q.id, ':', error)
+              signedMediaUrl = null
             }
           }
 
-          return { ...q, options: shuffledOpts, media_url: signedMediaUrl }
+          return {
+            ...q,
+            options: JSON.stringify(parsedOptions),
+            correct_answers: JSON.stringify(parsedCorrectAnswers),
+            media_url: signedMediaUrl,
+          }
         })
       )
 
