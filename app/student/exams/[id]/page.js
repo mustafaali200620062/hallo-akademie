@@ -63,6 +63,21 @@ export default function ExamSolvePage({ params }) {
         throw new Error(data.error || 'حدث خطأ')
       }
 
+      // ✅ Logs للتشخيص
+      console.log('=== EXAM DATA ===')
+      console.log('Exam title:', data.title)
+      console.log('Exam status:', data.status)
+      console.log('Questions count:', data.exam_questions?.length)
+      data.exam_questions?.forEach((q, i) => {
+        console.log(`--- Q${i + 1} ---`)
+        console.log('  type:', q.question_type)
+        console.log('  text:', q.question_text)
+        console.log('  media_url:', q.media_url)
+        console.log('  media_type:', q.media_type)
+        console.log('  options:', q.options)
+        console.log('  correct_answers:', q.correct_answers)
+      })
+
       setExam(data)
 
       if (data.status !== 'active' && data.ends_at) {
@@ -373,7 +388,6 @@ export default function ExamSolvePage({ params }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* ✅ شريط علوي - ثابت */}
       <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors`}>
         <div className="max-w-4xl mx-auto px-3 md:px-4 py-2 md:py-3">
           <div className="flex justify-between items-center mb-2">
@@ -428,19 +442,16 @@ export default function ExamSolvePage({ params }) {
 
               return (
                 <div key={question.id} className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
-                  {/* ✅ رأس السؤال */}
                   <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200">
                     <div className="flex items-center gap-2 md:gap-3">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-extrabold shadow-md text-sm md:text-base">
                         {index + 1}
                       </div>
-                      <div>
-                        <div className="text-sm md:text-base font-bold text-gray-800" dir="ltr">
-                          {question.question_type === 'multiple_choice' ? 'Multiple Choice' :
-                           question.question_type === 'matching' ? 'Zuordnung' :
-                           question.question_type === 'image' ? 'Bild' :
-                           question.question_type === 'audio' ? 'Hörverstehen' : 'Text'}
-                        </div>
+                      <div className="text-sm md:text-base font-bold text-gray-800" dir="ltr">
+                        {question.question_type === 'multiple_choice' ? 'Multiple Choice' :
+                         question.question_type === 'matching' ? 'Zuordnung' :
+                         question.question_type === 'image' ? 'Bild' :
+                         question.question_type === 'audio' ? 'Hörverstehen' : 'Text'}
                       </div>
                     </div>
                     <span className="px-2 md:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs md:text-sm font-extrabold whitespace-nowrap" dir="ltr">
@@ -448,25 +459,38 @@ export default function ExamSolvePage({ params }) {
                     </span>
                   </div>
 
-                  {/* ✅ نص السؤال */}
                   <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">{question.question_text}</p>
 
-                  {/* ✅ الصورة - تحت رأس السؤال مباشرة */}
-                  {question.question_type === 'image' && question.media_url && (
-                    <div className="mb-5 flex justify-center bg-gray-50 rounded-xl p-3 md:p-4">
-                      <img
-                        src={question.media_url}
-                        alt="Frage"
-                        className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
-                        onError={(e) => {
-                          e.target.parentElement.innerHTML = '<div class="text-red-500 font-bold text-center">⚠️ Bild konnte nicht geladen werden</div>'
-                        }}
-                      />
+                  {/* ✅ الصورة مع Debug */}
+                  {question.question_type === 'image' && (
+                    <div className="mb-5">
+                      {question.media_url ? (
+                        <div className="flex justify-center bg-gray-50 rounded-xl p-3 md:p-4">
+                          <img
+                            src={question.media_url}
+                            alt="Frage"
+                            className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
+                            onError={(e) => {
+                              console.error('❌ Image failed to load:', question.media_url)
+                              e.target.style.border = '2px solid red'
+                            }}
+                            onLoad={() => {
+                              console.log('✅ Image loaded:', question.media_url?.substring(0, 100))
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-center">
+                          <p className="text-red-700 font-bold text-sm">
+                            ⚠️ Keine Bild-URL für diese Frage
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* ✅ الصوت - تحت رأس السؤال مباشرة */}
-                  {question.question_type === 'audio' && question.media_url && (
+                  {/* ✅ الصوت مع Debug */}
+                  {question.question_type === 'audio' && (
                     <div className="mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg md:text-xl">
@@ -476,19 +500,27 @@ export default function ExamSolvePage({ params }) {
                           Hören Sie sich die Audiodatei an
                         </span>
                       </div>
-                      <audio
-                        controls
-                        className="w-full"
-                        controlsList="nodownload"
-                        onContextMenu={(e) => e.preventDefault()}
-                      >
-                        <source src={question.media_url} type="audio/mpeg" />
-                        Ihr Browser unterstützt kein Audio
-                      </audio>
+                      {question.media_url ? (
+                        <audio
+                          controls
+                          className="w-full"
+                          controlsList="nodownload"
+                          onContextMenu={(e) => e.preventDefault()}
+                          onError={(e) => console.error('❌ Audio failed:', question.media_url)}
+                        >
+                          <source src={question.media_url} type="audio/mpeg" />
+                          Ihr Browser unterstützt kein Audio
+                        </audio>
+                      ) : (
+                        <div className="bg-red-100 border-2 border-red-300 rounded-lg p-3 text-center">
+                          <p className="text-red-700 font-bold text-sm">
+                            ⚠️ Keine Audio-URL für diese Frage
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* ✅ خيارات الاختيار من متعدد */}
                   {question.question_type === 'multiple_choice' && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
@@ -529,7 +561,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* ✅ سؤال نصي */}
                   {question.question_type === 'text' && (
                     <textarea
                       value={answers[question.id] || ''}
@@ -541,7 +572,6 @@ export default function ExamSolvePage({ params }) {
                     />
                   )}
 
-                  {/* ✅ سؤال المطابقة */}
                   {question.question_type === 'matching' && (
                     <div className="space-y-2 md:space-y-3">
                       {options?.map((pair, i) => (
@@ -572,7 +602,6 @@ export default function ExamSolvePage({ params }) {
             })}
           </div>
 
-          {/* ✅ زر التسليم بالألماني */}
           <div className="mt-6 md:mt-8 mb-6 md:mb-8">
             <button
               type="submit"
