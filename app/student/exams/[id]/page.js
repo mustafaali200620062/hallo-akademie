@@ -18,17 +18,7 @@ export default function ExamSolvePage({ params }) {
   const [requestingReentry, setRequestingReentry] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const submittedRef = useRef(false)
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -75,7 +65,8 @@ export default function ExamSolvePage({ params }) {
 
       setExam(data)
 
-      if (data.ends_at) {
+      // ✅ بنتحقق من ends_at بس لو الاختبار مش active
+      if (data.status !== 'active' && data.ends_at) {
         const now = new Date()
         const endTime = new Date(data.ends_at)
         if (now > endTime) {
@@ -308,8 +299,14 @@ export default function ExamSolvePage({ params }) {
     )
   }
 
-  // ✅ التصحيح: نتحقق من المحاولة أولاً قبل timeLeft
-  if (examEnded || attempt?.status === 'locked' || (attempt?.status === 'in_progress' && timeLeft <= 0)) {
+  // ✅ الشرط الجديد: لا نقفل إلا لو الاختبار مش active، أو المحاولة اتقفلت، أو الوقت خلص
+  const shouldBlock = (
+    attempt?.status === 'locked' ||
+    (attempt?.status === 'in_progress' && timeLeft <= 0) ||
+    (examEnded && exam?.status !== 'active')
+  )
+
+  if (shouldBlock) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-md w-full text-center">
