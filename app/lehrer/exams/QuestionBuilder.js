@@ -1,6 +1,12 @@
 'use client'
 
+import { useState } from 'react'
+
 export default function QuestionBuilder({ question, index, onUpdate, onDelete }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(question.media_url || '')
+
   const addOption = () => {
     const newOptions = [...(question.options || []), '']
     onUpdate(index, 'options', newOptions)
@@ -28,27 +34,66 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
     onUpdate(index, 'correct_answers', correct)
   }
 
+  // ✅ رفع الملف
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0]
     if (!file) return
+
+    setUploadError(null)
+
+    // ✅ التحقق من الحجم
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError(`حجم الملف كبير جداً (${(file.size / 1024 / 1024).toFixed(1)} MB). الحد الأقصى 10 MB`)
+      return
+    }
+
+    setUploading(true)
 
     const formData = new FormData()
     formData.append('file', file)
     formData.append('type', type)
 
     try {
+      console.log('📤 Uploading file:', file.name, 'size:', file.size)
+      
       const res = await fetch('/api/upload-question-media', {
         method: 'POST',
         body: formData,
       })
+
       const data = await res.json()
-      if (res.ok) {
-        onUpdate(index, 'media_url', data.url)
-        onUpdate(index, 'media_type', type)
+      console.log('📥 Upload response:', data)
+
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل الرفع')
       }
+
+      if (!data.url) {
+        throw new Error('لم يتم إرجاع رابط الملف')
+      }
+
+      // ✅ تحديث media_url و media_type معاً
+      onUpdate(index, 'media_url', data.url)
+      onUpdate(index, 'media_type', type)
+      setPreviewUrl(data.url)
+      
+      console.log('✅ Upload success! URL:', data.url)
+      
     } catch (error) {
-      console.error('Error uploading:', error)
+      console.error('❌ Upload error:', error)
+      setUploadError('فشل رفع الملف: ' + error.message)
+    } finally {
+      setUploading(false)
     }
+  }
+
+  // ✅ حذف الملف
+  const handleRemoveMedia = () => {
+    if (!confirm('هل تريد حذف الملف المرفوع؟')) return
+    onUpdate(index, 'media_url', '')
+    onUpdate(index, 'media_type', '')
+    setPreviewUrl('')
+    setUploadError(null)
   }
 
   return (
@@ -60,8 +105,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
             question.question_type === 'multiple_choice' ? 'اختيار من متعدد' :
             question.question_type === 'matching' ? 'مطابقة' :
             question.question_type === 'image' ? 'صورة' :
-            question.question_type === 'audio' ? 'صوتي' :
-            'اختيار من متعدد'
+            question.question_type === 'audio' ? 'صوتي' : 'اختيار من متعدد'
           }
         </h3>
         <button
@@ -86,20 +130,77 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
 
       {/* رفع صورة/صوت */}
       {(question.question_type === 'image' || question.question_type === 'audio') && (
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+        <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <label className="block text-sm font-bold text-gray-700 mb-2">
-            {question.question_type === 'image' ? '🖼️ ارفع صورة' : '🎵 ارفع مقطع صوتي'}
+            {question.question_type === 'image' ? '🖼️ ارفع صورة (حد أقصى 10 ميجا)' : '🎵 ارفع مقطع صوتي (حد أقصى 10 ميجا)'}
           </label>
-          <input
-            type="file"
-            accept={question.question_type === 'image' ? 'image/*' : 'audio/*'}
-            onChange={(e) => handleFileUpload(e, question.question_type)}
-            className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg"
-          />
-          {question.media_url && (
-            <p className="text-xs text-green-600 font-bold mt-2">
-              ✅ تم الرفع
+
+          {!previewUrl ? (
+            <input
+              type="file"
+              accept={question.question_type === 'image' ? 'image/*' : 'audio/*'}
+              onChange={(e) => handleFileUpload(e, question.question_type)}
+              disabled={uploading}
+              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:font-bold hover:file:bg-blue-700 disabled:opacity-50"
+            />
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-green-50 border border-green-300 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">✅</span>
+                  <span className="text-green-800 font-bold text-sm">
+                    {question.question_type === 'image' ? 'تم رفع الصورة' : 'تم رفع المقطع الصوتي'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveMedia}
+                  className="text-red-600 hover:text-red-800 font-bold text-sm"
+                >
+                  🗑️ حذف
+                </button>
+              </div>
+
+              {/* ✅ معاينة الصورة - من الرابط الأصلي (مش بيتحول لـ signed) */}
+              {question.question_type === 'image' && previewUrl && (
+                <div className="bg-white border-2 border-green-300 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-600 mb-2">📸 معاينة الصورة:</p>
+                  <img
+                    src={`/api/files/preview?key=${encodeURIComponent(previewUrl)}`}
+                    alt="معاينة"
+                    className="max-w-full max-h-60 rounded-lg mx-auto shadow-md object-contain"
+                    onError={(e) => {
+                      console.error('❌ Preview image failed:', previewUrl)
+                      e.target.parentElement.innerHTML = '<p class="text-red-500 text-sm font-bold text-center">⚠️ تعذر تحميل الصورة</p>'
+                    }}
+                    onLoad={() => console.log('✅ Preview loaded')}
+                  />
+                </div>
+              )}
+
+              {/* ✅ معاينة الصوت */}
+              {question.question_type === 'audio' && previewUrl && (
+                <div className="bg-white border-2 border-green-300 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-600 mb-2">🎵 معاينة المقطع الصوتي:</p>
+                  <audio controls className="w-full">
+                    <source src={`/api/files/preview?key=${encodeURIComponent(previewUrl)}`} type="audio/mpeg" />
+                    متصفحك لا يدعم الصوت
+                  </audio>
+                </div>
+              )}
+            </div>
+          )}
+
+          {uploading && (
+            <p className="text-sm text-blue-600 font-bold mt-2 animate-pulse">
+              ⏳ جاري الرفع...
             </p>
+          )}
+
+          {uploadError && (
+            <div className="mt-2 bg-red-50 border border-red-300 rounded-lg p-2">
+              <p className="text-sm text-red-700 font-bold">❌ {uploadError}</p>
+            </div>
           )}
         </div>
       )}
