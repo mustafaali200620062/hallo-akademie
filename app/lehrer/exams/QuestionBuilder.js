@@ -2,24 +2,29 @@
 
 import { useState } from 'react'
 
-export default function QuestionBuilder({ question, index, onUpdate, onDelete }) {
+export default function QuestionBuilder({ question, index, onUpdate, onDelete, examId, onSaved }) {
   const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(question.id ? true : false)
 
   const addOption = () => {
     const newOptions = [...(question.options || []), '']
     onUpdate(index, 'options', newOptions)
+    setSaved(false)
   }
 
   const removeOption = (optIndex) => {
     if ((question.options || []).length <= 2) return
     const newOptions = question.options.filter((_, i) => i !== optIndex)
     onUpdate(index, 'options', newOptions)
+    setSaved(false)
   }
 
   const updateOption = (optIndex, value) => {
     const newOptions = [...question.options]
     newOptions[optIndex] = value
     onUpdate(index, 'options', newOptions)
+    setSaved(false)
   }
 
   const toggleCorrect = (optIndex) => {
@@ -30,9 +35,10 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
       correct.push(optIndex)
     }
     onUpdate(index, 'correct_answers', correct)
+    setSaved(false)
   }
 
-  // ✅ رفع الملف فعلياً على R2
+  // ✅ رفع الملف
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0]
     if (!file) return
@@ -57,6 +63,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
 
       onUpdate(index, 'media_url', data.url)
       onUpdate(index, 'media_type', type)
+      setSaved(false)
     } catch (error) {
       console.error('Error uploading:', error)
       alert('فشل رفع الملف: ' + error.message)
@@ -65,26 +72,100 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
     }
   }
 
-  // ✅ حذف الملف المرفوع
   const handleRemoveMedia = () => {
     if (!confirm('هل تريد حذف الملف المرفوع؟')) return
     onUpdate(index, 'media_url', '')
     onUpdate(index, 'media_type', '')
+    setSaved(false)
+  }
+
+  // ✅ حفظ السؤال مباشرة
+  const handleSaveQuestion = async () => {
+    // التحقق
+    if (!question.question_text?.trim()) {
+      alert('يرجى كتابة نص السؤال')
+      return
+    }
+
+    if (question.question_type === 'image' && !question.media_url) {
+      alert('يرجى رفع صورة للسؤال')
+      return
+    }
+
+    if (question.question_type === 'audio' && !question.media_url) {
+      alert('يرجى رفع مقطع صوتي للسؤال')
+      return
+    }
+
+    if (question.question_type !== 'matching') {
+      const validOptions = (question.options || []).filter(o => o?.trim())
+      if (validOptions.length < 2) {
+        alert('يرجى إدخال خيارين على الأقل')
+        return
+      }
+      if (!(question.correct_answers || []).length) {
+        alert('يرجى تحديد الإجابة الصحيحة')
+        return
+      }
+    }
+
+    setSaving(true)
+
+    try {
+      const res = await fetch('/api/exam-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exam_id: examId,
+          question_type: question.question_type,
+          question_text: question.question_text,
+          media_url: question.media_url || null,
+          media_type: question.media_type || null,
+          options: JSON.stringify(question.options || []),
+          correct_answers: JSON.stringify(question.correct_answers || []),
+          correct_answer: JSON.stringify(question.correct_answers || []),
+          points: question.points || 1,
+          explanation: question.explanation || '',
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل حفظ السؤال')
+      }
+
+      setSaved(true)
+      alert('✅ تم حفظ السؤال بنجاح!')
+      if (onSaved) onSaved()
+
+    } catch (error) {
+      console.error('Error saving question:', error)
+      alert('فشل حفظ السؤال: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
+    <div className={`bg-white border-2 rounded-xl p-4 mb-4 ${saved ? 'border-green-400' : 'border-gray-200'}`}>
       {/* رأس السؤال */}
       <div className="flex justify-between items-center mb-3">
-        <h3 className="font-bold text-gray-800">
-          سؤال {index + 1} • {
-            question.question_type === 'multiple_choice' ? 'اختيار من متعدد' :
-            question.question_type === 'matching' ? 'مطابقة' :
-            question.question_type === 'image' ? 'صورة' :
-            question.question_type === 'audio' ? 'صوتي' :
-            'اختيار من متعدد'
-          }
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-bold text-gray-800">
+            سؤال {index + 1} • {
+              question.question_type === 'multiple_choice' ? 'اختيار من متعدد' :
+              question.question_type === 'matching' ? 'مطابقة' :
+              question.question_type === 'image' ? 'صورة' :
+              question.question_type === 'audio' ? 'صوتي' : 'اختيار من متعدد'
+            }
+          </h3>
+          {saved && (
+            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">
+              ✅ محفوظ
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => onDelete(index)}
@@ -100,12 +181,15 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
           type="text"
           placeholder="نص السؤال"
           value={question.question_text}
-          onChange={(e) => onUpdate(index, 'question_text', e.target.value)}
+          onChange={(e) => {
+            onUpdate(index, 'question_text', e.target.value)
+            setSaved(false)
+          }}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
         />
       </div>
 
-      {/* رفع صورة/صوت - بشكل فعلي */}
+      {/* رفع صورة/صوت */}
       {(question.question_type === 'image' || question.question_type === 'audio') && (
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -154,7 +238,10 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
           min="0.5"
           step="0.5"
           value={question.points}
-          onChange={(e) => onUpdate(index, 'points', parseFloat(e.target.value) || 1)}
+          onChange={(e) => {
+            onUpdate(index, 'points', parseFloat(e.target.value) || 1)
+            setSaved(false)
+          }}
           className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
         />
       </div>
@@ -205,7 +292,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
       {question.question_type === 'matching' && (
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700">
-            الأزواج (العمود الأيمن ← الأيسر):
+            الأزواج:
           </label>
           {(question.options || []).map((pair, pairIndex) => (
             <div key={pairIndex} className="flex items-center gap-2">
@@ -217,6 +304,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
                   const newOptions = [...question.options]
                   newOptions[pairIndex] = { ...newOptions[pairIndex], left: e.target.value }
                   onUpdate(index, 'options', newOptions)
+                  setSaved(false)
                 }}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
               />
@@ -229,6 +317,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
                   const newOptions = [...question.options]
                   newOptions[pairIndex] = { ...newOptions[pairIndex], right: e.target.value }
                   onUpdate(index, 'options', newOptions)
+                  setSaved(false)
                 }}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
               />
@@ -237,6 +326,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
                 onClick={() => {
                   const newOptions = question.options.filter((_, i) => i !== pairIndex)
                   onUpdate(index, 'options', newOptions)
+                  setSaved(false)
                 }}
                 className="text-red-600 hover:text-red-800 font-bold px-2"
               >
@@ -249,6 +339,7 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
             onClick={() => {
               const newOptions = [...(question.options || []), { left: '', right: '' }]
               onUpdate(index, 'options', newOptions)
+              setSaved(false)
             }}
             className="text-blue-600 hover:text-blue-800 font-bold text-sm"
           >
@@ -262,10 +353,29 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         <textarea
           placeholder="شرح الإجابة (اختياري)"
           value={question.explanation}
-          onChange={(e) => onUpdate(index, 'explanation', e.target.value)}
+          onChange={(e) => {
+            onUpdate(index, 'explanation', e.target.value)
+            setSaved(false)
+          }}
           rows="2"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
         />
+      </div>
+
+      {/* ✅ زر حفظ السؤال */}
+      <div className="mt-4 pt-3 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={handleSaveQuestion}
+          disabled={saving || saved}
+          className={`w-full py-3 rounded-xl font-extrabold transition-all ${
+            saved
+              ? 'bg-green-100 text-green-700 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+          }`}
+        >
+          {saving ? '⏳ جاري الحفظ...' : saved ? '✅ تم الحفظ' : '💾 حفظ السؤال'}
+        </button>
       </div>
     </div>
   )
