@@ -1,11 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-export default function QuestionBuilder({ question, index, onUpdate, onDelete }) {
+export default function QuestionBuilder({ question, index, onUpdate, onDelete, onBatchUpdate }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(question.media_url || '')
+
+  // ✅ مزامنة previewUrl لما question.media_url يتغير من الخارج
+  useEffect(() => {
+    setPreviewUrl(question.media_url || '')
+  }, [question.media_url])
 
   const addOption = () => {
     const newOptions = [...(question.options || []), '']
@@ -41,7 +46,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
 
     setUploadError(null)
 
-    // ✅ التحقق من الحجم
     if (file.size > 10 * 1024 * 1024) {
       setUploadError(`حجم الملف كبير جداً (${(file.size / 1024 / 1024).toFixed(1)} MB). الحد الأقصى 10 MB`)
       return
@@ -72,12 +76,18 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         throw new Error('لم يتم إرجاع رابط الملف')
       }
 
-      // ✅ تحديث media_url و media_type معاً
-      onUpdate(index, 'media_url', data.url)
-      onUpdate(index, 'media_type', type)
-      setPreviewUrl(data.url)
+      // ✅ تحديث media_url و media_type معاً في استدعاء واحد
+      if (onBatchUpdate) {
+        onBatchUpdate(index, { 
+          media_url: data.url, 
+          media_type: type 
+        })
+      } else {
+        onUpdate(index, 'media_url', data.url)
+      }
       
-      console.log('✅ Upload success! URL:', data.url)
+      setPreviewUrl(data.url)
+      console.log('✅ Upload success! URL:', data.url, 'Type:', type)
       
     } catch (error) {
       console.error('❌ Upload error:', error)
@@ -90,15 +100,20 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
   // ✅ حذف الملف
   const handleRemoveMedia = () => {
     if (!confirm('هل تريد حذف الملف المرفوع؟')) return
-    onUpdate(index, 'media_url', '')
-    onUpdate(index, 'media_type', '')
+    
+    if (onBatchUpdate) {
+      onBatchUpdate(index, { media_url: '', media_type: '' })
+    } else {
+      onUpdate(index, 'media_url', '')
+      onUpdate(index, 'media_type', '')
+    }
+    
     setPreviewUrl('')
     setUploadError(null)
   }
 
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
-      {/* رأس السؤال */}
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-bold text-gray-800">
           سؤال {index + 1} • {
@@ -117,7 +132,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         </button>
       </div>
 
-      {/* نص السؤال */}
       <div className="mb-3">
         <input
           type="text"
@@ -128,7 +142,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         />
       </div>
 
-      {/* رفع صورة/صوت */}
       {(question.question_type === 'image' || question.question_type === 'audio') && (
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -161,7 +174,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
                 </button>
               </div>
 
-              {/* ✅ معاينة الصورة - من الرابط الأصلي (مش بيتحول لـ signed) */}
               {question.question_type === 'image' && previewUrl && (
                 <div className="bg-white border-2 border-green-300 rounded-xl p-3">
                   <p className="text-xs font-bold text-gray-600 mb-2">📸 معاينة الصورة:</p>
@@ -178,7 +190,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
                 </div>
               )}
 
-              {/* ✅ معاينة الصوت */}
               {question.question_type === 'audio' && previewUrl && (
                 <div className="bg-white border-2 border-green-300 rounded-xl p-3">
                   <p className="text-xs font-bold text-gray-600 mb-2">🎵 معاينة المقطع الصوتي:</p>
@@ -205,7 +216,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         </div>
       )}
 
-      {/* الدرجة */}
       <div className="mb-3 flex items-center gap-2">
         <label className="text-sm font-bold text-gray-700">النقاط:</label>
         <input
@@ -218,7 +228,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         />
       </div>
 
-      {/* الخيارات */}
       {question.question_type !== 'matching' && (
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700">
@@ -260,7 +269,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         </div>
       )}
 
-      {/* المطابقة */}
       {question.question_type === 'matching' && (
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700">
@@ -316,7 +324,6 @@ export default function QuestionBuilder({ question, index, onUpdate, onDelete })
         </div>
       )}
 
-      {/* شرح الإجابة */}
       <div className="mt-3">
         <textarea
           placeholder="شرح الإجابة (اختياري)"

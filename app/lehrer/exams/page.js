@@ -95,6 +95,18 @@ export default function LehrerExamsPage() {
     newQuestions[index] = { ...newQuestions[index], [field]: value }
     setQuestions(newQuestions)
     console.log(`✏️ Updated Q${index + 1} field "${field}":`, value)
+    console.log(`🔍 Q${index + 1} now:`, JSON.stringify(newQuestions[index], null, 2))
+  }
+
+  // ✅✅✅ دالة التحديث المتعدد (مهمة جداً لحفظ الصورة)
+  const batchUpdateQuestion = (index, updates) => {
+    setQuestions(prevQuestions => {
+      const newQuestions = [...prevQuestions]
+      newQuestions[index] = { ...newQuestions[index], ...updates }
+      console.log(`🔧 Batch updated Q${index + 1}:`, updates)
+      console.log(`🔍 Q${index + 1} after batch:`, JSON.stringify(newQuestions[index], null, 2))
+      return newQuestions
+    })
   }
 
   const addQuestion = (type) => {
@@ -115,6 +127,15 @@ export default function LehrerExamsPage() {
     console.log(`➕ Added new question of type: ${type}`)
   }
 
+  // ✅ استخراج media_url بأي اسم متوقع
+  const extractMediaUrl = (q) => {
+    return q.media_url || q.mediaUrl || q.image_url || q.imageUrl || q.audio_url || q.audioUrl || null
+  }
+
+  const extractMediaType = (q) => {
+    return q.media_type || q.mediaType || (q.image_url || q.imageUrl ? 'image' : null) || (q.audio_url || q.audioUrl ? 'audio' : null)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
@@ -128,6 +149,17 @@ export default function LehrerExamsPage() {
       const endMonth = formData.ends_at_month.padStart(2, '0')
       const endDay = formData.ends_at_day.padStart(2, '0')
       const endDate = `${formData.ends_at_year}-${endMonth}-${endDay}T${to24Hour(formData.ends_at_hour, formData.ends_at_ampm)}:${formData.ends_at_minute.padStart(2, '0')}:00`
+
+      // ✅ VALIDATION: تحقق من وجود media_url لأسئلة الصور والصوت
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i]
+        const mediaUrl = extractMediaUrl(q)
+        console.log(`🔎 Q${i + 1} - type: ${q.question_type}, media_url: "${mediaUrl}"`)
+        
+        if ((q.question_type === 'image' || q.question_type === 'audio') && !mediaUrl) {
+          throw new Error(`⚠️ السؤال ${i + 1} من نوع "${q.question_type}" ولا يحتوي على صورة/صوت مرفوع. الرجاء رفع الملف أولاً.`)
+        }
+      }
 
       // ✅ 1. إنشاء الاختبار
       console.log('📝 Creating exam...')
@@ -171,13 +203,20 @@ export default function LehrerExamsPage() {
 
           console.log(`🔍 Question ${i + 1} full data:`, JSON.stringify(q, null, 2))
 
+          const mediaUrl = extractMediaUrl(q)
+          const mediaType = extractMediaType(q)
+
+          console.log(`📸 Q${i + 1} extracted -> media_url: "${mediaUrl}", media_type: "${mediaType}"`)
+
           const payload = {
             exam_id: examId,
             question_order: i + 1,
             question_type: q.question_type,
             question_text: q.question_text,
-            media_url: q.media_url || null,
-            media_type: q.media_type || null,
+            media_url: mediaUrl,
+            media_type: mediaType,
+            mediaUrl: mediaUrl,
+            mediaType: mediaType,
             options: JSON.stringify(q.options),
             correct_answers: JSON.stringify(q.correct_answers || []),
             correct_answer: JSON.stringify(q.correct_answers || []),
@@ -185,7 +224,7 @@ export default function LehrerExamsPage() {
             explanation: q.explanation || '',
           }
 
-          console.log(`📤 Sending payload for Q${i + 1}:`, payload)
+          console.log(`📤 Sending payload for Q${i + 1}:`, JSON.stringify(payload, null, 2))
 
           const qRes = await fetch('/api/exam-questions', {
             method: 'POST',
@@ -486,6 +525,7 @@ export default function LehrerExamsPage() {
                     question={q}
                     index={idx}
                     onUpdate={updateQuestion}
+                    onBatchUpdate={batchUpdateQuestion}
                     onDelete={(i) => {
                       setQuestions(questions.filter((_, index) => index !== i))
                       console.log(`🗑️ Deleted question ${i + 1}`)
