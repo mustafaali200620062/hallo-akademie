@@ -63,7 +63,6 @@ export default function ExamSolvePage({ params }) {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      // ✅ Logs للتشخيص
       console.log('=== EXAM DATA ===')
       console.log('Exam title:', data.title)
       console.log('Exam status:', data.status)
@@ -440,6 +439,11 @@ export default function ExamSolvePage({ params }) {
 
               const isMultiple = Array.isArray(correctAnswers) && correctAnswers.length > 1
 
+              // ✅ تحديد أنواع الأسئلة اللي بتعرض خيارات
+              const showOptions =
+                question.question_type === 'multiple_choice' ||
+                ((question.question_type === 'image' || question.question_type === 'audio') && options && options.length > 0)
+
               return (
                 <div key={question.id} className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
                   <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200">
@@ -461,7 +465,7 @@ export default function ExamSolvePage({ params }) {
 
                   <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">{question.question_text}</p>
 
-                  {/* ✅ الصورة مع Debug */}
+                  {/* ✅ الصورة */}
                   {question.question_type === 'image' && (
                     <div className="mb-5">
                       {question.media_url ? (
@@ -489,7 +493,7 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* ✅ الصوت مع Debug */}
+                  {/* ✅ الصوت */}
                   {question.question_type === 'audio' && (
                     <div className="mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
@@ -521,7 +525,8 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {question.question_type === 'multiple_choice' && (
+                  {/* ✅ الخيارات - تشمل now multiple_choice + image + audio */}
+                  {showOptions && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
