@@ -9,13 +9,17 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [group, setGroup] = useState({ id: null, name: null })
   const [stats, setStats] = useState({
-    groups: 0,
-    exams: 0,
-    completedExams: 0,
-    totalPoints: 0,
-    rank: '-'
+    available_exams: 0,
+    completed_exams: 0,
+    total_points: 0,
+    level_rank: null,
+    level_rank_badge: null,
+    group_rank: null,
+    group_rank_badge: null,
   })
+  const [errors, setErrors] = useState([])
   const [activeTab, setActiveTab] = useState('dashboard')
 
   useEffect(() => {
@@ -38,28 +42,8 @@ export default function StudentPage() {
         return
       }
 
-      const userLevelId = parsedUser?.level_id || null
-      
-      let levelCode = null
-      if (userLevelId) {
-        try {
-          const levelRes = await fetch('/api/levels')
-          const levelsData = await levelRes.json()
-          if (Array.isArray(levelsData)) {
-            const foundLevel = levelsData.find(l => l.id === userLevelId)
-            levelCode = foundLevel?.code || null
-          }
-        } catch (error) {
-          console.error('Error fetching levels:', error)
-        }
-      }
-
-      setProfile({
-        ...parsedUser,
-        level_code: levelCode
-      })
-
-      await fetchStats()
+      setProfile(parsedUser)
+      await fetchDashboard(parsedUser.id)
 
     } catch (error) {
       console.error('Error:', error)
@@ -69,15 +53,18 @@ export default function StudentPage() {
     }
   }
 
-  const fetchStats = async () => {
+  const fetchDashboard = async (sId) => {
     try {
-      const res = await fetch('/api/student/stats')
+      const res = await fetch(`/api/student/dashboard?student_id=${sId}`)
       const data = await res.json()
       if (res.ok) {
-        setStats(data)
+        setProfile(data.student)
+        setGroup(data.group || { id: null, name: null })
+        setStats(data.stats || {})
+        setErrors(data.errors || [])
       }
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error('Error fetching dashboard:', error)
     }
   }
 
@@ -89,6 +76,18 @@ export default function StudentPage() {
       'B2': { label: 'B2 - فوق متوسط', color: 'bg-purple-100 text-purple-800' }
     }
     return levels[levelCode] || { label: levelCode || 'غير محدد', color: 'bg-gray-100 text-gray-800' }
+  }
+
+  const formatRankBadge = (rank, badge) => {
+    if (rank === null || rank === undefined) return '-'
+    const crown = badge === 'crown' ? ' 👑' : badge === 'duplicate' ? ' 🔁' : ''
+    return `#${rank}${crown}`
+  }
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   if (loading) {
@@ -105,67 +104,67 @@ export default function StudentPage() {
             <div className="absolute inset-2 rounded-full border-4 border-transparent border-b-red-600 border-l-yellow-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <p className="mt-6 text-lg font-black text-gray-700 animate-pulse">جاري التحميل...</p>
-          <div className="mt-2 flex justify-center gap-1">
-            <span className="w-2 h-2 bg-black rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-            <span className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-            <span className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-          </div>
         </div>
       </div>
     )
   }
 
   const levelInfo = getLevelDisplay(profile?.level_code)
-  const studentName = user?.name || user?.full_name || 'طالب'
+  const studentName = user?.name || user?.full_name || profile?.full_name || 'طالب'
 
   return (
     <div className="min-h-screen relative bg-custom flex flex-row">
-      {/* ✅ خلفية ثابتة مع بلور خفيف */}
       <div className="absolute inset-0 w-full h-full bg-custom"></div>
       <div className="absolute inset-0 w-full h-full bg-black/30 blur-overlay"></div>
 
-      {/* المحتوى الرئيسي */}
       <div className="flex-1 p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
         {activeTab === 'dashboard' && (
           <>
-            {/* بطاقات الإحصائيات */}
+            {/* ═══ بطاقات الإحصائيات ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 card-mobile">
+
+              {/* ✅ 1. Group */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 font-bold">المجموعات</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.groups}</p>
+                    <p className="text-sm text-gray-600 font-bold uppercase tracking-wider">Group</p>
+                    <p className="text-xl font-extrabold text-gray-900 mt-1">
+                      {group.name || 'بدون جروب'}
+                    </p>
                   </div>
                   <div className="text-4xl">📚</div>
                 </div>
               </div>
 
+              {/* ✅ 2. الاختبارات المتاحة */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 font-bold">الاختبارات المتاحة</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.exams}</p>
+                    <p className="text-3xl font-extrabold text-gray-900">{stats.available_exams || 0}</p>
                   </div>
                   <div className="text-4xl">📝</div>
                 </div>
               </div>
 
+              {/* ✅ 3. الاختبارات المكتملة */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 font-bold">الاختبارات المكتملة</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.completedExams}</p>
+                    <p className="text-3xl font-extrabold text-gray-900">{stats.completed_exams || 0}</p>
                   </div>
                   <div className="text-4xl">✅</div>
                 </div>
               </div>
 
+              {/* ✅ 4. الترتيب على المستوى */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 font-bold">النقاط / الترتيب</p>
-                    <p className="text-3xl font-extrabold text-gray-900">
-                      {stats.totalPoints} / #{stats.rank}
+                    <p className="text-sm text-gray-600 font-bold">الترتيب / النقاط</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1">
+                      {formatRankBadge(stats.level_rank, stats.level_rank_badge)} / {stats.total_points || 0}
                     </p>
                   </div>
                   <div className="text-4xl">🏆</div>
@@ -173,8 +172,10 @@ export default function StudentPage() {
               </div>
             </div>
 
-            {/* قسم المستوى والأخطاء */}
+            {/* ═══ Rank + الأخطاء ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 card-mobile">
+
+              {/* ✅ صندوق Rank */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
                 <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📊 Rank
@@ -188,28 +189,66 @@ export default function StudentPage() {
                   </div>
                   <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
                     <span className="text-gray-600 font-bold">النقاط</span>
-                    <span className="font-extrabold text-lg text-gray-900">{stats.totalPoints}</span>
+                    <span className="font-extrabold text-lg text-gray-900">{stats.total_points || 0}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                    <span className="text-gray-600 font-bold">Rank</span>
-                    <span className="font-extrabold text-lg text-gray-900">#{stats.rank}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                    <span className="text-gray-600 font-bold">الاختبارات المكتملة</span>
-                    <span className="font-extrabold text-lg text-gray-900">{stats.completedExams}</span>
+                    <span className="text-gray-600 font-bold">Rank (Group)</span>
+                    <span className="font-extrabold text-lg text-gray-900">
+                      {formatRankBadge(stats.group_rank, stats.group_rank_badge)}
+                    </span>
                   </div>
                 </div>
               </div>
 
+              {/* ✅ صندوق الأخطاء */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
                 <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
-                  ❌ أخطائي
+                  ❌ أخطائي ({errors.length})
                 </h2>
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📖</div>
-                  <p className="font-bold">لا توجد أخطاء مسجلة حتى الآن</p>
-                  <p className="text-sm font-bold mt-2">ستظهر الأخطاء بعد حل الاختبارات</p>
-                </div>
+
+                {errors.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📖</div>
+                    <p className="font-bold">لا توجد أخطاء مسجلة حتى الآن</p>
+                    <p className="text-sm font-bold mt-2">ستظهر الأخطاء بعد حل الاختبارات</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {errors.map((err, idx) => (
+                      <div key={err.id || idx} className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                            📝 {err.exam_title}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {formatDate(err.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 mb-2">
+                          {err.question_text}
+                        </p>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 font-bold">إجابتك:</span>
+                            <span className="text-red-700 font-bold">
+                              {Array.isArray(err.student_answer)
+                                ? err.student_answer.join('، ')
+                                : String(err.student_answer)}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 font-bold">الصح:</span>
+                            <span className="text-green-700 font-bold">
+                              {Array.isArray(err.correct_answer)
+                                ? err.correct_answer.join('، ')
+                                : String(err.correct_answer)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -260,9 +299,8 @@ export default function StudentPage() {
         )}
       </div>
 
-      {/* القائمة الجانبية - تدرج ألوان علم ألمانيا */}
+      {/* القائمة الجانبية */}
       <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
-        {/* الهيدر */}
         <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-lg shadow-green-500/25">
@@ -275,7 +313,6 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* الطالب */}
         <div className="p-6 border-b border-white/10 sidebar-user">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-2xl text-white font-extrabold shadow-lg shadow-green-500/25">
@@ -293,7 +330,6 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* قائمة التنقل */}
         <nav className="p-4 space-y-1.5">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -347,7 +383,6 @@ export default function StudentPage() {
           </button>
         </nav>
 
-        {/* زر الخروج - Logout */}
         <div className="absolute bottom-0 w-72 p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {
