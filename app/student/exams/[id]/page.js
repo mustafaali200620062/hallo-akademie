@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function ExamSolvePage({ params }) {
@@ -18,7 +18,9 @@ export default function ExamSolvePage({ params }) {
   const [requestingReentry, setRequestingReentry] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [savingStatus, setSavingStatus] = useState(null) // 'saving' | 'saved' | 'error'
   const submittedRef = useRef(false)
+  const saveTimers = useRef({}) // ✅ timers لكل سؤال
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -62,16 +64,6 @@ export default function ExamSolvePage({ params }) {
         }
         throw new Error(data.error || 'حدث خطأ')
       }
-
-      console.log('=== EXAM DATA ===')
-      console.log('Exam title:', data.title)
-      console.log('Questions count:', data.exam_questions?.length)
-      data.exam_questions?.forEach((q, i) => {
-        console.log(`--- Q${i + 1} ---`)
-        console.log('  type:', q.question_type)
-        console.log('  options:', q.options)
-        console.log('  correct_answers:', q.correct_answers)
-      })
 
       setExam(data)
 
@@ -144,16 +136,60 @@ export default function ExamSolvePage({ params }) {
     }
   }
 
+  // ✅ حفظ إجابة واحدة في الداتابيز (live)
+  const saveAnswerToServer = useCallback(async (questionId, answerValue) => {
+    if (!attempt?.id) return
+
+    setSavingStatus('saving')
+    try {
+      const res = await fetch('/api/student/answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attempt_id: attempt.id,
+          question_id: questionId,
+          answer: answerValue,
+        })
+      })
+
+      if (!res.ok) throw new Error('Save failed')
+      setSavingStatus('saved')
+      setTimeout(() => setSavingStatus(null), 1500)
+    } catch (err) {
+      console.error('❌ Save answer error:', err)
+      setSavingStatus('error')
+      setTimeout(() => setSavingStatus(null), 3000)
+    }
+  }, [attempt])
+
+  // ✅ debounced save (1.5 ثانية بعد آخر تغيير)
+  const scheduleSave = useCallback((questionId, answerValue) => {
+    if (saveTimers.current[questionId]) {
+      clearTimeout(saveTimers.current[questionId])
+    }
+    saveTimers.current[questionId] = setTimeout(() => {
+      saveAnswerToServer(questionId, answerValue)
+      delete saveTimers.current[questionId]
+    }, 1500)
+  }, [saveAnswerToServer])
+
   const handleAnswer = (questionId, value, isMultiple = false) => {
+    let newAnswerValue
+
     if (isMultiple) {
       const current = Array.isArray(answers[questionId]) ? answers[questionId] : []
-      const newValue = current.includes(value)
+      newAnswerValue = current.includes(value)
         ? current.filter(v => v !== value)
         : [...current, value]
-      setAnswers({ ...answers, [questionId]: newValue })
     } else {
-      setAnswers({ ...answers, [questionId]: value })
+      newAnswerValue = value
     }
+
+    // ✅ تحديث الـ state فوراً
+    setAnswers(prev => ({ ...prev, [questionId]: newAnswerValue }))
+
+    // ✅ جدولة الحفظ (debounced)
+    scheduleSave(questionId, newAnswerValue)
   }
 
   const autoSubmit = async () => {
@@ -381,7 +417,6 @@ export default function ExamSolvePage({ params }) {
   const progressPercent = totalTime > 0 ? ((totalTime - timeLeft) / totalTime) * 100 : 0
   const isTimeWarning = timeLeft <= 5 && timeLeft > 0
 
-  // ✅ دالة مساعدة لتحويل options لأي صيغة → array of strings
   const normalizeOptions = (opts) => {
     let parsed = opts
     try {
@@ -396,14 +431,10 @@ export default function ExamSolvePage({ params }) {
     return parsed
       .map(opt => {
         if (typeof opt === 'string') return opt
-        if (opt && typeof opt === 'object') {
-          // لو object زي {left, right} (matching) نرجعه زي ما هو
-          return opt
-        }
+        if (opt && typeof opt === 'object') return opt
         return String(opt)
       })
       .filter(opt => {
-        // فلترة الفاضي (بس نخلي objects matching تعدي)
         if (opt && typeof opt === 'object') return true
         return opt && String(opt).trim() !== ''
       })
@@ -436,6 +467,18 @@ export default function ExamSolvePage({ params }) {
         </div>
       </div>
 
+      {/* ✅ مؤشر حفظ الإجابة */}
+      {savingStatus && (
+        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all ${
+          savingStatus === 'saving' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
+          savingStatus === 'saved' ? 'bg-green-100 text-green-800 border border-green-300' :
+          'bg-red-100 text-red-800 border border-red-300'
+        }`}>
+          {savingStatus === 'saving' ? '💾 Wird gespeichert...' :
+           savingStatus === 'saved' ? '✅ Gespeichert' : '⚠️ Fehler beim Speichern'}
+        </div>
+      )}
+
       {isTimeWarning && (
         <div className="bg-red-100 border-b-2 border-red-400 py-2 px-3 md:px-4 text-center">
           <p className="text-red-700 font-extrabold text-xs md:text-sm" dir="ltr">
@@ -461,8 +504,6 @@ export default function ExamSolvePage({ params }) {
               }
 
               const isMultiple = Array.isArray(correctAnswers) && correctAnswers.length > 1
-
-              // ✅ عرض الخيارات لو فيه خيارات فعلية (بعد الفلترة)
               const hasTextOptions = options.length > 0 && options.some(o => typeof o === 'string')
               const showOptions =
                 (question.question_type === 'multiple_choice' && hasTextOptions) ||
@@ -489,7 +530,6 @@ export default function ExamSolvePage({ params }) {
 
                   <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">{question.question_text}</p>
 
-                  {/* ✅ الصورة */}
                   {question.question_type === 'image' && (
                     <div className="mb-5">
                       {question.media_url ? (
@@ -498,9 +538,6 @@ export default function ExamSolvePage({ params }) {
                             src={question.media_url}
                             alt="Frage"
                             className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
-                            onError={(e) => {
-                              console.error('❌ Image failed to load:', question.media_url)
-                            }}
                           />
                         </div>
                       ) : (
@@ -513,7 +550,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* ✅ الصوت */}
                   {question.question_type === 'audio' && (
                     <div className="mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
@@ -525,12 +561,7 @@ export default function ExamSolvePage({ params }) {
                         </span>
                       </div>
                       {question.media_url ? (
-                        <audio
-                          controls
-                          className="w-full"
-                          controlsList="nodownload"
-                          onContextMenu={(e) => e.preventDefault()}
-                        >
+                        <audio controls className="w-full" controlsList="nodownload" onContextMenu={(e) => e.preventDefault()}>
                           <source src={question.media_url} type="audio/mpeg" />
                           Ihr Browser unterstützt kein Audio
                         </audio>
@@ -544,7 +575,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* ✅ الخيارات (لـ multiple_choice + image + audio) */}
                   {showOptions && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
@@ -611,10 +641,9 @@ export default function ExamSolvePage({ params }) {
                               value={answers[question.id]?.[i] || ''}
                               onChange={(e) => {
                                 const current = answers[question.id] || {}
-                                setAnswers({
-                                  ...answers,
-                                  [question.id]: { ...current, [i]: e.target.value }
-                                })
+                                const newVal = { ...current, [i]: e.target.value }
+                                setAnswers(prev => ({ ...prev, [question.id]: newVal }))
+                                scheduleSave(question.id, newVal)
                               }}
                               className="p-2 md:p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
                               placeholder="Antwort..."
