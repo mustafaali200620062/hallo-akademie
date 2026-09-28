@@ -11,10 +11,9 @@ export default function RequestsManagementPage() {
   const [success, setSuccess] = useState(null)
   const [processing, setProcessing] = useState(null)
 
-  // ✅ حالة إظهار كلمة المرور لكل طالب
   const [visiblePasswords, setVisiblePasswords] = useState({})
-  const [editingPassword, setEditingPassword] = useState({})   // { studentId: newPassword }
-  const [savingPassword, setSavingPassword] = useState(null)    // studentId جاري الحفظ
+  const [editingPassword, setEditingPassword] = useState({})
+  const [savingPassword, setSavingPassword] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
 
   useEffect(() => {
@@ -83,7 +82,6 @@ export default function RequestsManagementPage() {
     }
   }
 
-  // ✅ حفظ كلمة المرور
   const handleSavePassword = async (studentId) => {
     const newPassword = editingPassword[studentId]
     if (!newPassword || newPassword.length < 6) {
@@ -125,7 +123,6 @@ export default function RequestsManagementPage() {
     }
   }
 
-  // ✅ نسخ كلمة المرور
   const handleCopy = async (studentId, password) => {
     try {
       await navigator.clipboard.writeText(password)
@@ -146,6 +143,119 @@ export default function RequestsManagementPage() {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // ✅ مكون عرض كلمة المرور (مشترك بين المعلق والسابق)
+  const PasswordDisplay = ({ request }) => {
+    const hasPassword = request.student_password && request.student_password.length > 0
+    const isVisible = visiblePasswords[request.student_id]
+    const isEditing = editingPassword[request.student_id] !== undefined
+
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-gray-600 font-bold text-sm">🔑 كلمة المرور:</span>
+
+        {hasPassword ? (
+          <>
+            <span
+              className="font-mono font-extrabold text-gray-900 bg-white px-3 py-1 rounded-lg border border-gray-300 text-sm"
+              dir="ltr"
+            >
+              {isVisible ? request.student_password : '••••••••'}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setVisiblePasswords(prev => ({
+                ...prev,
+                [request.student_id]: !prev[request.student_id]
+              }))}
+              className="text-blue-600 hover:text-blue-800 font-bold text-sm px-2 py-1 rounded hover:bg-blue-50"
+              title={isVisible ? 'إخفاء' : 'إظهار'}
+            >
+              {isVisible ? '🙈' : '👁️'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCopy(request.student_id, request.student_password)}
+              className="text-gray-600 hover:text-gray-800 font-bold text-sm px-2 py-1 rounded hover:bg-gray-100"
+              title="نسخ"
+            >
+              {copiedId === request.student_id ? '✅ تم' : '📋'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditingPassword(prev => ({
+                ...prev,
+                [request.student_id]: request.student_password
+              }))}
+              className="text-orange-600 hover:text-orange-800 font-bold text-xs px-2 py-1 rounded hover:bg-orange-50"
+              title="تعديل"
+            >
+              ✏️
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-red-600 font-bold text-sm">
+              ⚠️ بدون كلمة مرور
+            </span>
+
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setEditingPassword(prev => ({
+                  ...prev,
+                  [request.student_id]: ''
+                }))}
+                className="bg-blue-600 text-white text-xs px-3 py-1 rounded-lg font-bold hover:bg-blue-700"
+              >
+                ✏️ تعيين كلمة مرور
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ✅ حقل الإدخال — يظهر في حالة التعديل */}
+        {isEditing && (
+          <div className="flex items-center gap-2 w-full mt-2">
+            <input
+              type="text"
+              value={editingPassword[request.student_id] || ''}
+              onChange={(e) => setEditingPassword(prev => ({
+                ...prev,
+                [request.student_id]: e.target.value
+              }))}
+              placeholder="6 أحرف على الأقل"
+              className="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono flex-1"
+              dir="ltr"
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => handleSavePassword(request.student_id)}
+              disabled={savingPassword === request.student_id}
+              className="bg-green-600 text-white text-xs px-3 py-1 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+            >
+              {savingPassword === request.student_id ? '⏳' : '💾 حفظ'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingPassword(prev => {
+                const copy = { ...prev }
+                delete copy[request.student_id]
+                return copy
+              })}
+              className="text-gray-500 hover:text-gray-700 text-xs font-bold px-2"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (loading) {
@@ -210,160 +320,64 @@ export default function RequestsManagementPage() {
               </span>
             </h2>
             <div className="grid grid-cols-1 gap-4">
-              {pendingRequests.map((request) => {
-                const hasPassword = request.student_password && request.student_password.length > 0
-                const isVisible = visiblePasswords[request.student_id]
-                const isEditing = editingPassword[request.student_id] !== undefined
+              {pendingRequests.map((request) => (
+                <div key={request.id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {request.student_name || 'طالب جديد'}
+                        </h3>
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
+                          في انتظار المراجعة
+                        </span>
+                      </div>
 
-                return (
-                  <div key={request.id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900">
-                            {request.student_name || 'طالب جديد'}
-                          </h3>
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
-                            في انتظار المراجعة
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 font-bold">📱:</span>
+                          <span className="text-gray-700 font-bold" dir="ltr">
+                            {request.student_phone || 'رقم غير متوفر'}
                           </span>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 font-bold">📱:</span>
-                            <span className="text-gray-700 font-bold" dir="ltr">
-                              {request.student_phone || 'رقم غير متوفر'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 font-bold">📚:</span>
-                            <span className="text-gray-700 font-bold">
-                              {request.level_code || 'غير محدد'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 font-bold">🕐:</span>
-                            <span className="text-gray-700 font-bold">
-                              {formatDate(request.created_at)}
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 font-bold">📚:</span>
+                          <span className="text-gray-700 font-bold">
+                            {request.level_code || 'غير محدد'}
+                          </span>
                         </div>
-
-                        {/* ✅ كلمة المرور */}
-                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-gray-600 font-bold text-sm">🔑 كلمة المرور:</span>
-
-                              {hasPassword ? (
-                                <>
-                                  <span
-                                    className="font-mono font-extrabold text-gray-900 bg-white px-3 py-1 rounded-lg border border-gray-300 text-sm"
-                                    dir="ltr"
-                                  >
-                                    {isVisible ? request.student_password : '••••••••'}
-                                  </span>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setVisiblePasswords(prev => ({
-                                      ...prev,
-                                      [request.student_id]: !prev[request.student_id]
-                                    }))}
-                                    className="text-blue-600 hover:text-blue-800 font-bold text-sm px-2 py-1 rounded hover:bg-blue-50"
-                                    title={isVisible ? 'إخفاء' : 'إظهار'}
-                                  >
-                                    {isVisible ? '🙈' : '👁️'}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(request.student_id, request.student_password)}
-                                    className="text-gray-600 hover:text-gray-800 font-bold text-sm px-2 py-1 rounded hover:bg-gray-100"
-                                    title="نسخ"
-                                  >
-                                    {copiedId === request.student_id ? '✅ تم' : '📋'}
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="text-red-600 font-bold text-sm">
-                                    ⚠️ بدون كلمة مرور
-                                  </span>
-
-                                  {!isEditing ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingPassword(prev => ({
-                                        ...prev,
-                                        [request.student_id]: ''
-                                      }))}
-                                      className="bg-blue-600 text-white text-xs px-3 py-1 rounded-lg font-bold hover:bg-blue-700"
-                                    >
-                                      ✏️ تعيين كلمة مرور
-                                    </button>
-                                  ) : (
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="text"
-                                        value={editingPassword[request.student_id] || ''}
-                                        onChange={(e) => setEditingPassword(prev => ({
-                                          ...prev,
-                                          [request.student_id]: e.target.value
-                                        }))}
-                                        placeholder="6 أحرف على الأقل"
-                                        className="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono"
-                                        dir="ltr"
-                                        minLength={6}
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSavePassword(request.student_id)}
-                                        disabled={savingPassword === request.student_id}
-                                        className="bg-green-600 text-white text-xs px-3 py-1 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
-                                      >
-                                        {savingPassword === request.student_id ? '⏳' : '💾 حفظ'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingPassword(prev => {
-                                          const copy = { ...prev }
-                                          delete copy[request.student_id]
-                                          return copy
-                                        })}
-                                        className="text-gray-500 hover:text-gray-700 text-xs font-bold"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 font-bold">🕐:</span>
+                          <span className="text-gray-700 font-bold">
+                            {formatDate(request.created_at)}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleRequest(request.id, 'approved')}
-                          disabled={processing === request.id}
-                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {processing === request.id ? '⏳' : '✅'} قبول
-                        </button>
-                        <button
-                          onClick={() => handleRequest(request.id, 'rejected')}
-                          disabled={processing === request.id}
-                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {processing === request.id ? '⏳' : '❌'} رفض
-                        </button>
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <PasswordDisplay request={request} />
                       </div>
                     </div>
+
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleRequest(request.id, 'approved')}
+                        disabled={processing === request.id}
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {processing === request.id ? '⏳' : '✅'} قبول
+                      </button>
+                      <button
+                        onClick={() => handleRequest(request.id, 'rejected')}
+                        disabled={processing === request.id}
+                        className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {processing === request.id ? '⏳' : '❌'} رفض
+                      </button>
+                    </div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -375,69 +389,38 @@ export default function RequestsManagementPage() {
               📜 الطلبات السابقة
             </h2>
             <div className="grid grid-cols-1 gap-3">
-              {otherRequests.map((request) => {
-                const hasPassword = request.student_password && request.student_password.length > 0
-                const isVisible = visiblePasswords[request.student_id]
-
-                return (
-                  <div key={request.id} className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="font-bold text-gray-900">
-                            {request.student_name || 'طالب جديد'}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                            request.status === 'approved' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {request.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-500 font-bold">
-                          <span>📱 {request.student_phone || '-'}</span>
-                          <span>📚 {request.level_code || '-'}</span>
-                          <span>🕐 {formatDate(request.created_at)}</span>
-                        </div>
-
-                        {/* ✅ كلمة المرور للطلبات المعتمدة */}
-                        {request.status === 'approved' && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-gray-500 font-bold text-xs">🔑 كلمة المرور:</span>
-                            {hasPassword ? (
-                              <>
-                                <span className="font-mono text-sm font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded" dir="ltr">
-                                  {isVisible ? request.student_password : '••••••'}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setVisiblePasswords(prev => ({
-                                    ...prev,
-                                    [request.student_id]: !prev[request.student_id]
-                                  }))}
-                                  className="text-blue-600 hover:text-blue-800 text-sm"
-                                >
-                                  {isVisible ? '🙈' : '👁️'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopy(request.student_id, request.student_password)}
-                                  className="text-gray-500 hover:text-gray-700 text-sm"
-                                >
-                                  {copiedId === request.student_id ? '✅' : '📋'}
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-red-600 font-bold text-xs">⚠️ بدون كلمة مرور</span>
-                            )}
-                          </div>
-                        )}
+              {otherRequests.map((request) => (
+                <div key={request.id} className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-bold text-gray-900">
+                          {request.student_name || 'طالب جديد'}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          request.status === 'approved' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {request.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}
+                        </span>
                       </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-500 font-bold mb-2">
+                        <span>📱 {request.student_phone || '-'}</span>
+                        <span>📚 {request.level_code || '-'}</span>
+                        <span>🕐 {formatDate(request.created_at)}</span>
+                      </div>
+
+                      {/* ✅ كلمة المرور — يظهر للطلاب المقبولين بس */}
+                      {request.status === 'approved' && (
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <PasswordDisplay request={request} />
+                        </div>
+                      )}
                     </div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
