@@ -5,7 +5,7 @@ import { examAttempts, studentAnswers, examQuestions, studentPoints, studentErro
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
-// ✅ دالة مساعدة: تحويل أي قيمة لـ array of strings
+// ✅ تحويل أي قيمة لـ array
 const toArray = (val) => {
   if (val === null || val === undefined) return []
   if (Array.isArray(val)) return val
@@ -21,12 +21,13 @@ const toArray = (val) => {
   return [val]
 }
 
-// ✅ تطبيع الإجابة لمقارنة موحدة
-const normalizeValue = (v) => {
+// ✅ تطبيع النص
+const normalizeText = (v) => {
+  if (v === null || v === undefined) return ''
   return String(v).trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-// ✅ استخراج الخيارات من options + فهرسة
+// ✅ استخراج قائمة الخيارات (نصوص فقط) من options
 const getOptionsList = (options) => {
   let parsed = options
   try {
@@ -36,7 +37,11 @@ const getOptionsList = (options) => {
     return []
   }
   if (!Array.isArray(parsed)) return []
-  return parsed.map(o => (typeof o === 'string' ? o : (o?.left ?? String(o)))).filter(Boolean)
+  return parsed.map(o => {
+    if (typeof o === 'string') return o
+    if (o && typeof o === 'object' && o.left) return o.left
+    return String(o)
+  })
 }
 
 export async function POST(request) {
@@ -48,7 +53,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Attempt ID and Student ID are required' }, { status: 400 })
     }
 
-    // ✅ جلب المحاولة
     const attempts = await db
       .select()
       .from(examAttempts)
@@ -63,7 +67,6 @@ export async function POST(request) {
 
     const attempt = attempts[0]
 
-    // ✅ لو مسلم بالفعل، نرجع نجاح
     if (attempt.status === 'submitted') {
       return NextResponse.json({
         success: true,
@@ -73,12 +76,11 @@ export async function POST(request) {
       })
     }
 
-    // ✅ حذف أي إجابات قديمة (احتياط من auto-submit ثم manual)
+    // ✅ حذف أي إجابات قديمة
     await db.delete(studentAnswers).where(eq(studentAnswers.attempt_id, attempt_id))
 
     let totalScore = 0
 
-    // ✅ حفظ الإجابات وحساب الدرجات
     if (answers && typeof answers === 'object') {
       for (const [questionId, answer] of Object.entries(answers)) {
         const questions = await db
@@ -90,59 +92,47 @@ export async function POST(request) {
 
         const question = questions[0]
 
-        // ✅ الإجابات الصحيحة
+        // ✅ الإجابات الصحيحة (ممكن تكون فهارس أو نصوص)
         const correctAnswersRaw = toArray(question.correct_answers).length > 0
           ? toArray(question.correct_answers)
           : toArray(question.correct_answer)
 
-        // ✅ الخيارات لعمل الفهرسة
+        // ✅ قائمة الخيارات النصية
         const optionsList = getOptionsList(question.options)
 
-        // ✅ قائمة قيم مقبولة للتصحيح (تشمل: النص + الفهرس)
-        const correctValues = new Set()
-        for (const ca of correctAnswersRaw) {
-          // النص الأصلي
-          correctValues.add(normalizeValue(ca))
-          // لو رقم → ياخد النص من options
+        // ✅ تحويل الإجابات الصحيحة إلى نصوص (نفس صيغة الطالب)
+        // لو الإجابة رقم → نجيبه من optionsList
+        // لو نص → نسيبه زي ما هو
+        const correctTexts = correctAnswersRaw.map(ca => {
           const asNum = Number(ca)
-          if (!isNaN(asNum) && optionsList[asNum] !== undefined) {
-            correctValues.add(normalizeValue(optionsList[asNum]))
+          if (!isNaN(asNum) && Number.isInteger(asNum) && optionsList[asNum] !== undefined) {
+            return normalizeText(optionsList[asNum])
           }
-          // لو نص → يدور على الفهرس
-          const idx = optionsList.findIndex(o => normalizeValue(o) === normalizeValue(ca))
-          if (idx !== -1) {
-            correctValues.add(normalizeValue(idx))
-          }
-        }
+          return normalizeText(ca)
+        }).filter(Boolean).sort()
 
-        // ✅ الإجابات اللي الطالب اختارها
+        // ✅ تحويل إجابات الطالب إلى نصوص موحدة
         const answerList = Array.isArray(answer) ? answer : [answer]
-        const answerValues = new Set()
-        for (const a of answerList) {
-          answerValues.add(normalizeValue(a))
-          const asNum = Number(a)
-          if (!isNaN(asNum) && optionsList[asNum] !== undefined) {
-            answerValues.add(normalizeValue(optionsList[asNum]))
-          }
-          const idx = optionsList.findIndex(o => normalizeValue(o) === normalizeValue(a))
-          if (idx !== -1) {
-            answerValues.add(normalizeValue(idx))
-          }
-        }
+        const answerTexts = answerList.map(a => normalizeText(a)).filter(Boolean).sort()
 
-        // ✅ المقارنة النهائية
+        // ✅ المقارنة النهائية (نص بنص)
         let isCorrect = false
-        if (correctValues.size > 0 && answerValues.size > 0) {
-          // كل عنصر في answerValues موجود في correctValues والعكس
-          const allMatch = [...answerValues].every(v => correctValues.has(v))
-            && [...correctValues].every(v => answerValues.has(v))
-          isCorrect = allMatch
+        if (correctTexts.length > 0 && answerTexts.length > 0) {
+          // لو نفس العدد وكل العناصر متطابقة
+          isCorrect = correctTexts.length === answerTexts.length &&
+            correctTexts.every((v, i) => v === answerTexts[i])
         }
 
         const awardedPoints = isCorrect ? (question.points || 1) : 0
         totalScore += awardedPoints
 
-        // ✅ حفظ الإجابة
+        console.log(`📝 Q ${questionId}:`)
+        console.log(`   correctRaw:`, correctAnswersRaw)
+        console.log(`   correctTexts:`, correctTexts)
+        console.log(`   answerRaw:`, answerList)
+        console.log(`   answerTexts:`, answerTexts)
+        console.log(`   isCorrect: ${isCorrect}, points: ${awardedPoints}`)
+
         await db.insert(studentAnswers).values({
           id: randomUUID(),
           attempt_id: attempt_id,
@@ -153,7 +143,6 @@ export async function POST(request) {
           answered_at: new Date(),
         })
 
-        // ✅ تسجيل الخطأ
         if (!isCorrect) {
           await db.insert(studentErrors).values({
             id: randomUUID(),
@@ -168,7 +157,6 @@ export async function POST(request) {
       }
     }
 
-    // ✅ تحديث المحاولة
     await db
       .update(examAttempts)
       .set({
@@ -179,7 +167,6 @@ export async function POST(request) {
       })
       .where(eq(examAttempts.id, attempt_id))
 
-    // ✅ تحديث نقاط الطالب
     const existingPointsData = await db
       .select()
       .from(studentPoints)
