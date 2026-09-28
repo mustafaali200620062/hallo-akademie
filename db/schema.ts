@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, timestamp, unique } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 // ========== الأدوار ==========
@@ -35,6 +35,16 @@ export const profiles = pgTable('profiles', {
   created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   updated_at: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
 })
+
+// ========== ✅ ربط المدرسين بالمستويات ==========
+export const teacherLevels = pgTable('teacher_levels', {
+  id: text('id').primaryKey(),
+  teacher_id: text('teacher_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  level_id: text('level_id').notNull().references(() => levels.id, { onDelete: 'cascade' }),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  uniqueTeacherLevel: unique().on(table.teacher_id, table.level_id),
+}))
 
 // ========== طلبات الانضمام ==========
 export const joinRequests = pgTable('join_requests', {
@@ -142,7 +152,7 @@ export const examAttempts = pgTable('exam_attempts', {
   status: text('status').default('not_started'),
   started_at: timestamp('started_at'),
   submitted_at: timestamp('submitted_at'),
-  last_activity_at: timestamp('last_activity_at'),      // ✅ جديد: آخر لحظة تفاعل
+  last_activity_at: timestamp('last_activity_at'),
   extra_minutes: integer('extra_minutes').default(0),
   total_score: integer('total_score').default(0),
   is_reentry_allowed: boolean('is_reentry_allowed').default(false),
