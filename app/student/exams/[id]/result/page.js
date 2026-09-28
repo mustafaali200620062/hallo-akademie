@@ -12,25 +12,31 @@ export default function ExamResultPage() {
   const [result, setResult] = useState(null)
   const [exam, setExam] = useState(null)
   const [error, setError] = useState(null)
+  const [studentId, setStudentId] = useState(null)
 
   useEffect(() => {
-    checkUser()
-    fetchResult()
-  }, [])
-
-  const checkUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    if (!session?.user) {
+    const userData = localStorage.getItem('user')
+    if (!userData) {
       router.push('/login')
       return
     }
-  }
+    const parsed = JSON.parse(userData)
+    if (parsed.role !== 'Student') {
+      router.push('/unauthorized')
+      return
+    }
+    setStudentId(parsed.id)
+    fetchResult(parsed.id)
+  }, [])
 
-  const fetchResult = async () => {
+  const fetchResult = async (sId) => {
     try {
-      // جلب نتيجة الاختبار
-      const response = await fetch(`/api/student/exam-result?examId=${examId}`)
+      // ✅ نرسل student_id عشان الـ API يتحقق
+      const url = sId
+        ? `/api/student/exam-result?examId=${examId}&student_id=${sId}`
+        : `/api/student/exam-result?examId=${examId}`
+
+      const response = await fetch(url)
       const data = await response.json()
 
       if (!response.ok) {
@@ -49,17 +55,26 @@ export default function ExamResultPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">جاري التحميل...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-2xl font-bold">جاري التحميل...</div>
       </div>
     )
   }
 
   if (error || !result) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg">
-          {error || 'لم يتم العثور على النتيجة'}
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full text-center">
+          <div className="text-5xl mb-4">⚠️</div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-4 font-bold">
+            {error || 'لم يتم العثور على النتيجة'}
+          </div>
+          <button
+            onClick={() => router.push('/student/exams')}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors"
+          >
+            ← العودة للاختبارات
+          </button>
         </div>
       </div>
     )
