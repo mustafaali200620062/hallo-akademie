@@ -142,6 +142,7 @@ export const examAttempts = pgTable('exam_attempts', {
   status: text('status').default('not_started'),
   started_at: timestamp('started_at'),
   submitted_at: timestamp('submitted_at'),
+  last_activity_at: timestamp('last_activity_at'),      // ✅ جديد: آخر لحظة تفاعل
   extra_minutes: integer('extra_minutes').default(0),
   total_score: integer('total_score').default(0),
   is_reentry_allowed: boolean('is_reentry_allowed').default(false),
