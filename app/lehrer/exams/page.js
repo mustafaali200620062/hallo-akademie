@@ -95,16 +95,13 @@ export default function LehrerExamsPage() {
     newQuestions[index] = { ...newQuestions[index], [field]: value }
     setQuestions(newQuestions)
     console.log(`✏️ Updated Q${index + 1} field "${field}":`, value)
-    console.log(`🔍 Q${index + 1} now:`, JSON.stringify(newQuestions[index], null, 2))
   }
 
-  // ✅✅✅ دالة التحديث المتعدد (مهمة جداً لحفظ الصورة)
   const batchUpdateQuestion = (index, updates) => {
     setQuestions(prevQuestions => {
       const newQuestions = [...prevQuestions]
       newQuestions[index] = { ...newQuestions[index], ...updates }
       console.log(`🔧 Batch updated Q${index + 1}:`, updates)
-      console.log(`🔍 Q${index + 1} after batch:`, JSON.stringify(newQuestions[index], null, 2))
       return newQuestions
     })
   }
@@ -127,7 +124,6 @@ export default function LehrerExamsPage() {
     console.log(`➕ Added new question of type: ${type}`)
   }
 
-  // ✅ استخراج media_url بأي اسم متوقع
   const extractMediaUrl = (q) => {
     return q.media_url || q.mediaUrl || q.image_url || q.imageUrl || q.audio_url || q.audioUrl || null
   }
@@ -150,18 +146,14 @@ export default function LehrerExamsPage() {
       const endDay = formData.ends_at_day.padStart(2, '0')
       const endDate = `${formData.ends_at_year}-${endMonth}-${endDay}T${to24Hour(formData.ends_at_hour, formData.ends_at_ampm)}:${formData.ends_at_minute.padStart(2, '0')}:00`
 
-      // ✅ VALIDATION: تحقق من وجود media_url لأسئلة الصور والصوت
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i]
         const mediaUrl = extractMediaUrl(q)
-        console.log(`🔎 Q${i + 1} - type: ${q.question_type}, media_url: "${mediaUrl}"`)
-        
         if ((q.question_type === 'image' || q.question_type === 'audio') && !mediaUrl) {
           throw new Error(`⚠️ السؤال ${i + 1} من نوع "${q.question_type}" ولا يحتوي على صورة/صوت مرفوع. الرجاء رفع الملف أولاً.`)
         }
       }
 
-      // ✅ 1. إنشاء الاختبار
       console.log('📝 Creating exam...')
       const response = await fetch('/api/exams', {
         method: 'POST',
@@ -187,26 +179,15 @@ export default function LehrerExamsPage() {
       }
 
       const examId = data.id || data.exam?.id
-      console.log('📝 Exam ID:', examId)
-
       if (!examId) {
         throw new Error('لم يتم إنشاء الاختبار بشكل صحيح')
       }
 
-      // ✅ 2. إضافة الأسئلة
       if (questions.length > 0) {
-        console.log(`📝 Adding ${questions.length} questions...`)
-        console.log('🔍 Questions state:', JSON.stringify(questions, null, 2))
-
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
-
-          console.log(`🔍 Question ${i + 1} full data:`, JSON.stringify(q, null, 2))
-
           const mediaUrl = extractMediaUrl(q)
           const mediaType = extractMediaType(q)
-
-          console.log(`📸 Q${i + 1} extracted -> media_url: "${mediaUrl}", media_type: "${mediaType}"`)
 
           const payload = {
             exam_id: examId,
@@ -224,8 +205,6 @@ export default function LehrerExamsPage() {
             explanation: q.explanation || '',
           }
 
-          console.log(`📤 Sending payload for Q${i + 1}:`, JSON.stringify(payload, null, 2))
-
           const qRes = await fetch('/api/exam-questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -233,10 +212,7 @@ export default function LehrerExamsPage() {
           })
 
           const qData = await qRes.json()
-          console.log(`📥 Question ${i + 1} response:`, qData)
-
           if (!qRes.ok) {
-            console.error(`❌ Question ${i + 1} failed:`, qData.error)
             throw new Error(`فشل حفظ السؤال ${i + 1}: ${qData.error || 'حدث خطأ'}`)
           }
         }
@@ -356,149 +332,216 @@ export default function LehrerExamsPage() {
         {showForm && groups.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">إضافة اختبار جديد</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700">عنوان الاختبار</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  placeholder="اختبار المستوى A1"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700">الوصف</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  rows="2"
-                  placeholder="وصف الاختبار..."
-                />
-              </div>
+              {/* ═══ المعلومات الأساسية ═══ */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">📝 المعلومات الأساسية</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">المجموعة</label>
-                  <select
-                    required
-                    value={formData.group_id}
-                    onChange={(e) => {
-                      const group = groups.find(g => g.id === e.target.value)
-                      setFormData({ ...formData, group_id: e.target.value, level_id: group?.level_id || '' })
-                    }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="">اختر المجموعة</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} - {group.level_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">المستوى</label>
-                  <select
-                    required
-                    value={formData.level_id}
-                    onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                  >
-                    <option value="">اختر المستوى</option>
-                    {levels.map((level) => (
-                      <option key={level.id} value={level.id}>
-                        {level.code} - {level.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">عنوان الاختبار</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="اختبار المستوى A1"
+                    />
+                  </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ البدء (Start Date)</label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  <input type="number" min="2024" max="2100" required placeholder="Year"
-                    value={formData.starts_at_year}
-                    onChange={(e) => setFormData({ ...formData, starts_at_year: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="12" required placeholder="Month"
-                    value={formData.starts_at_month}
-                    onChange={(e) => setFormData({ ...formData, starts_at_month: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="31" required placeholder="Day"
-                    value={formData.starts_at_day}
-                    onChange={(e) => setFormData({ ...formData, starts_at_day: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="12" required placeholder="Hour"
-                    value={formData.starts_at_hour}
-                    onChange={(e) => setFormData({ ...formData, starts_at_hour: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="0" max="59" required placeholder="Minute"
-                    value={formData.starts_at_minute}
-                    onChange={(e) => setFormData({ ...formData, starts_at_minute: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                </div>
-                <select value={formData.starts_at_ampm}
-                  onChange={(e) => setFormData({ ...formData, starts_at_ampm: e.target.value })}
-                  className="mt-2 w-32 px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr">
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">الوصف</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      rows="2"
+                      placeholder="وصف الاختبار..."
+                    />
+                  </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <label className="block text-sm font-bold text-gray-700 mb-2">📅 تاريخ الانتهاء (End Date)</label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  <input type="number" min="2024" max="2100" required placeholder="Year"
-                    value={formData.ends_at_year}
-                    onChange={(e) => setFormData({ ...formData, ends_at_year: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="12" required placeholder="Month"
-                    value={formData.ends_at_month}
-                    onChange={(e) => setFormData({ ...formData, ends_at_month: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="31" required placeholder="Day"
-                    value={formData.ends_at_day}
-                    onChange={(e) => setFormData({ ...formData, ends_at_day: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="1" max="12" required placeholder="Hour"
-                    value={formData.ends_at_hour}
-                    onChange={(e) => setFormData({ ...formData, ends_at_hour: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                  <input type="number" min="0" max="59" required placeholder="Minute"
-                    value={formData.ends_at_minute}
-                    onChange={(e) => setFormData({ ...formData, ends_at_minute: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr" />
-                </div>
-                <select value={formData.ends_at_ampm}
-                  onChange={(e) => setFormData({ ...formData, ends_at_ampm: e.target.value })}
-                  className="mt-2 w-32 px-3 py-2 border border-gray-300 rounded-lg text-gray-900" dir="ltr">
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">المدة (دقائق)</label>
-                  <input type="number" required min="1" value={formData.duration_minutes}
-                    onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                    placeholder="60" dir="ltr" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">الدرجة الكلية</label>
-                  <input type="number" required min="1" step="0.5" value={formData.total_points}
-                    onChange={(e) => setFormData({ ...formData, total_points: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
-                    placeholder="100" dir="ltr" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">المجموعة</label>
+                      <select
+                        required
+                        value={formData.group_id}
+                        onChange={(e) => {
+                          const group = groups.find(g => g.id === e.target.value)
+                          setFormData({ ...formData, group_id: e.target.value, level_id: group?.level_id || '' })
+                        }}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      >
+                        <option value="">اختر المجموعة</option>
+                        {groups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.name} - {group.level_code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">المستوى</label>
+                      <select
+                        required
+                        value={formData.level_id}
+                        onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      >
+                        <option value="">اختر المستوى</option>
+                        {levels.map((level) => (
+                          <option key={level.id} value={level.id}>
+                            {level.code} - {level.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* ═══ التواريخ (كل واحد في صندوق منفصل) ═══ */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                {/* صندوق تاريخ البدء */}
+                <div className="bg-green-50 rounded-xl p-4 border-2 border-green-200">
+                  <h3 className="text-lg font-bold text-green-800 mb-3 flex items-center gap-2">
+                    🟢 تاريخ البدء (Start Date)
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">السنة</label>
+                        <input type="number" min="2024" max="2100" required placeholder="2025"
+                          value={formData.starts_at_year}
+                          onChange={(e) => setFormData({ ...formData, starts_at_year: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الشهر</label>
+                        <input type="number" min="1" max="12" required placeholder="1-12"
+                          value={formData.starts_at_month}
+                          onChange={(e) => setFormData({ ...formData, starts_at_month: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">اليوم</label>
+                        <input type="number" min="1" max="31" required placeholder="1-31"
+                          value={formData.starts_at_day}
+                          onChange={(e) => setFormData({ ...formData, starts_at_day: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الساعة</label>
+                        <input type="number" min="1" max="12" required placeholder="1-12"
+                          value={formData.starts_at_hour}
+                          onChange={(e) => setFormData({ ...formData, starts_at_hour: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الدقيقة</label>
+                        <input type="number" min="0" max="59" required placeholder="0-59"
+                          value={formData.starts_at_minute}
+                          onChange={(e) => setFormData({ ...formData, starts_at_minute: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الفترة</label>
+                        <select value={formData.starts_at_ampm}
+                          onChange={(e) => setFormData({ ...formData, starts_at_ampm: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center font-bold" dir="ltr">
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* صندوق تاريخ الانتهاء */}
+                <div className="bg-red-50 rounded-xl p-4 border-2 border-red-200">
+                  <h3 className="text-lg font-bold text-red-800 mb-3 flex items-center gap-2">
+                    🔴 تاريخ الانتهاء (End Date)
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">السنة</label>
+                        <input type="number" min="2024" max="2100" required placeholder="2025"
+                          value={formData.ends_at_year}
+                          onChange={(e) => setFormData({ ...formData, ends_at_year: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الشهر</label>
+                        <input type="number" min="1" max="12" required placeholder="1-12"
+                          value={formData.ends_at_month}
+                          onChange={(e) => setFormData({ ...formData, ends_at_month: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">اليوم</label>
+                        <input type="number" min="1" max="31" required placeholder="1-31"
+                          value={formData.ends_at_day}
+                          onChange={(e) => setFormData({ ...formData, ends_at_day: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الساعة</label>
+                        <input type="number" min="1" max="12" required placeholder="1-12"
+                          value={formData.ends_at_hour}
+                          onChange={(e) => setFormData({ ...formData, ends_at_hour: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الدقيقة</label>
+                        <input type="number" min="0" max="59" required placeholder="0-59"
+                          value={formData.ends_at_minute}
+                          onChange={(e) => setFormData({ ...formData, ends_at_minute: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center" dir="ltr" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">الفترة</label>
+                        <select value={formData.ends_at_ampm}
+                          onChange={(e) => setFormData({ ...formData, ends_at_ampm: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-center font-bold" dir="ltr">
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ إعدادات الاختبار ═══ */}
+              <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                <h3 className="text-lg font-bold text-blue-800 mb-3">⚙️ إعدادات الاختبار</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">المدة (دقائق)</label>
+                    <input type="number" required min="1" value={formData.duration_minutes}
+                      onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="60" dir="ltr" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">الدرجة الكلية</label>
+                    <input type="number" required min="1" step="0.5" value={formData.total_points}
+                      onChange={(e) => setFormData({ ...formData, total_points: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900"
+                      placeholder="100" dir="ltr" />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ الأسئلة ═══ */}
               <div className="border-t-2 border-gray-200 pt-4">
                 <label className="block text-sm font-bold text-gray-700 mb-3">
                   الأسئلة ({questions.length})
