@@ -5,20 +5,28 @@ import { examAttempts, studentAnswers, examQuestions, studentPoints, studentErro
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
-// ✅ تحويل أي قيمة لـ array
-const toArray = (val) => {
-  if (val === null || val === undefined) return []
-  if (Array.isArray(val)) return val
-  if (typeof val === 'string') {
+// ✅ فك التداخل المتعدد للـ JSON
+const deepParse = (val) => {
+  if (val === null || val === undefined) return null
+  let parsed = val
+  let attempts = 0
+  while (typeof parsed === 'string' && attempts < 10) {
     try {
-      const parsed = JSON.parse(val)
-      if (Array.isArray(parsed)) return parsed
-      return [parsed]
+      parsed = JSON.parse(parsed)
     } catch (e) {
-      return [val]
+      break
     }
+    attempts++
   }
-  return [val]
+  return parsed
+}
+
+// ✅ تحويل لأي حاجة → array
+const toArray = (val) => {
+  const parsed = deepParse(val)
+  if (parsed === null || parsed === undefined) return []
+  if (Array.isArray(parsed)) return parsed
+  return [parsed]
 }
 
 // ✅ تطبيع النص
@@ -27,19 +35,13 @@ const normalizeText = (v) => {
   return String(v).trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-// ✅ استخراج قائمة الخيارات (نصوص فقط) من options
+// ✅ استخراج قائمة الخيارات (نصوص) من options
 const getOptionsList = (options) => {
-  let parsed = options
-  try {
-    if (typeof options === 'string') parsed = JSON.parse(options)
-    if (typeof parsed === 'string') parsed = JSON.parse(parsed)
-  } catch (e) {
-    return []
-  }
+  const parsed = deepParse(options)
   if (!Array.isArray(parsed)) return []
   return parsed.map(o => {
     if (typeof o === 'string') return o
-    if (o && typeof o === 'object' && o.left) return o.left
+    if (o && typeof o === 'object' && o.left !== undefined) return o.left
     return String(o)
   })
 }
@@ -76,7 +78,7 @@ export async function POST(request) {
       })
     }
 
-    // ✅ حذف أي إجابات قديمة
+    // ✅ حذف الإجابات القديمة (احتياط)
     await db.delete(studentAnswers).where(eq(studentAnswers.attempt_id, attempt_id))
 
     let totalScore = 0
@@ -92,18 +94,25 @@ export async function POST(request) {
 
         const question = questions[0]
 
-        // ✅ الإجابات الصحيحة (ممكن تكون فهارس أو نصوص)
-        const correctAnswersRaw = toArray(question.correct_answers).length > 0
+        // ✅ فك التداخل للـ correct_answers
+        const correctRaw = toArray(question.correct_answers).length > 0
           ? toArray(question.correct_answers)
           : toArray(question.correct_answer)
 
-        // ✅ قائمة الخيارات النصية
+        // ✅ قائمة الخيارات
         const optionsList = getOptionsList(question.options)
 
-        // ✅ تحويل الإجابات الصحيحة إلى نصوص (نفس صيغة الطالب)
-        // لو الإجابة رقم → نجيبه من optionsList
-        // لو نص → نسيبه زي ما هو
-        const correctTexts = correctAnswersRaw.map(ca => {
+        console.log(`\n📝 ===== Question ${questionId} =====`)
+        console.log(`   type: ${question.question_type}`)
+        console.log(`   options (parsed):`, optionsList)
+        console.log(`   correctRaw:`, correctRaw)
+        console.log(`   student answer:`, answer)
+
+        // ✅ تحويل الإجابات الصحيحة إلى نصوص
+        // - لو رقم → جيب النص من optionsList
+        // - لو نص → خليه
+        const correctTexts = correctRaw.map(ca => {
+          // حاول تحويله لرقم
           const asNum = Number(ca)
           if (!isNaN(asNum) && Number.isInteger(asNum) && optionsList[asNum] !== undefined) {
             return normalizeText(optionsList[asNum])
@@ -111,27 +120,32 @@ export async function POST(request) {
           return normalizeText(ca)
         }).filter(Boolean).sort()
 
-        // ✅ تحويل إجابات الطالب إلى نصوص موحدة
+        // ✅ تحويل إجابات الطالب إلى نصوص
+        // - لو رقم → جيب النص من optionsList
+        // - لو نص → خليه
         const answerList = Array.isArray(answer) ? answer : [answer]
-        const answerTexts = answerList.map(a => normalizeText(a)).filter(Boolean).sort()
+        const answerTexts = answerList.map(a => {
+          const asNum = Number(a)
+          if (!isNaN(asNum) && Number.isInteger(asNum) && optionsList[asNum] !== undefined) {
+            return normalizeText(optionsList[asNum])
+          }
+          return normalizeText(a)
+        }).filter(Boolean).sort()
 
-        // ✅ المقارنة النهائية (نص بنص)
+        console.log(`   correctTexts:`, correctTexts)
+        console.log(`   answerTexts:`, answerTexts)
+
+        // ✅ المقارنة النهائية (نص بنص بعد الترتيب)
         let isCorrect = false
         if (correctTexts.length > 0 && answerTexts.length > 0) {
-          // لو نفس العدد وكل العناصر متطابقة
           isCorrect = correctTexts.length === answerTexts.length &&
             correctTexts.every((v, i) => v === answerTexts[i])
         }
 
+        console.log(`   ✅ isCorrect: ${isCorrect}`)
+
         const awardedPoints = isCorrect ? (question.points || 1) : 0
         totalScore += awardedPoints
-
-        console.log(`📝 Q ${questionId}:`)
-        console.log(`   correctRaw:`, correctAnswersRaw)
-        console.log(`   correctTexts:`, correctTexts)
-        console.log(`   answerRaw:`, answerList)
-        console.log(`   answerTexts:`, answerTexts)
-        console.log(`   isCorrect: ${isCorrect}, points: ${awardedPoints}`)
 
         await db.insert(studentAnswers).values({
           id: randomUUID(),
@@ -150,7 +164,7 @@ export async function POST(request) {
             question_id: questionId,
             attempt_id,
             student_answer: JSON.stringify(answer),
-            correct_answer: JSON.stringify(correctAnswersRaw),
+            correct_answer: JSON.stringify(correctRaw),
             created_at: new Date(),
           })
         }

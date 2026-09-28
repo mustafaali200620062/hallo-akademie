@@ -4,6 +4,24 @@ import { examQuestions } from '@/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
+// ✅ دالة مساعدة: تحويل لـ string JSON مرة واحدة بس
+const toJsonString = (val) => {
+  if (val === null || val === undefined) return null
+  
+  // لو أصلاً string → نشوف لو JSON صحيح نرجعه، لو لأ نحوّله JSON
+  if (typeof val === 'string') {
+    try {
+      JSON.parse(val)
+      return val  // string JSON صحيح
+    } catch (e) {
+      return JSON.stringify(val)
+    }
+  }
+  
+  // array أو object → نحوّلهم JSON
+  return JSON.stringify(val)
+}
+
 // ✅ جلب أسئلة الاختبار
 export async function GET(request) {
   try {
@@ -58,6 +76,7 @@ export async function POST(request) {
 
     const id = randomUUID()
 
+    // ✅ استخدام toJsonString بدل JSON.stringify (عشان نمنع double encoding)
     await db.insert(examQuestions).values({
       id,
       exam_id,
@@ -66,9 +85,9 @@ export async function POST(request) {
       question_type: question_type || 'multiple_choice',
       media_url: media_url || null,
       media_type: media_type || null,
-      options: options ? JSON.stringify(options) : null,
-      correct_answer: correct_answer || null,
-      correct_answers: correct_answers ? JSON.stringify(correct_answers) : null,
+      options: toJsonString(options),
+      correct_answer: toJsonString(correct_answer),
+      correct_answers: toJsonString(correct_answers),
       points: parseInt(points) || 1,
       explanation: explanation || null,
       created_at: new Date(),
