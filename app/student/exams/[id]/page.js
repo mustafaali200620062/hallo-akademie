@@ -65,14 +65,10 @@ export default function ExamSolvePage({ params }) {
 
       console.log('=== EXAM DATA ===')
       console.log('Exam title:', data.title)
-      console.log('Exam status:', data.status)
       console.log('Questions count:', data.exam_questions?.length)
       data.exam_questions?.forEach((q, i) => {
         console.log(`--- Q${i + 1} ---`)
         console.log('  type:', q.question_type)
-        console.log('  text:', q.question_text)
-        console.log('  media_url:', q.media_url)
-        console.log('  media_type:', q.media_type)
         console.log('  options:', q.options)
         console.log('  correct_answers:', q.correct_answers)
       })
@@ -385,6 +381,34 @@ export default function ExamSolvePage({ params }) {
   const progressPercent = totalTime > 0 ? ((totalTime - timeLeft) / totalTime) * 100 : 0
   const isTimeWarning = timeLeft <= 5 && timeLeft > 0
 
+  // ✅ دالة مساعدة لتحويل options لأي صيغة → array of strings
+  const normalizeOptions = (opts) => {
+    let parsed = opts
+    try {
+      if (typeof opts === 'string') parsed = JSON.parse(opts)
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+    } catch (e) {
+      parsed = []
+    }
+
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map(opt => {
+        if (typeof opt === 'string') return opt
+        if (opt && typeof opt === 'object') {
+          // لو object زي {left, right} (matching) نرجعه زي ما هو
+          return opt
+        }
+        return String(opt)
+      })
+      .filter(opt => {
+        // فلترة الفاضي (بس نخلي objects matching تعدي)
+        if (opt && typeof opt === 'object') return true
+        return opt && String(opt).trim() !== ''
+      })
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors`}>
@@ -424,25 +448,25 @@ export default function ExamSolvePage({ params }) {
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <div className="space-y-4 md:space-y-6">
             {questions.map((question, index) => {
-              let options = []
-              let correctAnswers = []
+              const options = normalizeOptions(question.options)
 
+              let correctAnswers = []
               try {
-                options = typeof question.options === 'string' ? JSON.parse(question.options) : (question.options || [])
-                if (typeof options === 'string') options = JSON.parse(options)
-                correctAnswers = typeof question.correct_answers === 'string' ? JSON.parse(question.correct_answers) : (question.correct_answers || [])
+                correctAnswers = typeof question.correct_answers === 'string'
+                  ? JSON.parse(question.correct_answers)
+                  : (question.correct_answers || [])
                 if (typeof correctAnswers === 'string') correctAnswers = JSON.parse(correctAnswers)
               } catch (e) {
-                options = []
                 correctAnswers = []
               }
 
               const isMultiple = Array.isArray(correctAnswers) && correctAnswers.length > 1
 
-              // ✅ تحديد أنواع الأسئلة اللي بتعرض خيارات
+              // ✅ عرض الخيارات لو فيه خيارات فعلية (بعد الفلترة)
+              const hasTextOptions = options.length > 0 && options.some(o => typeof o === 'string')
               const showOptions =
-                question.question_type === 'multiple_choice' ||
-                ((question.question_type === 'image' || question.question_type === 'audio') && options && options.length > 0)
+                (question.question_type === 'multiple_choice' && hasTextOptions) ||
+                ((question.question_type === 'image' || question.question_type === 'audio') && hasTextOptions)
 
               return (
                 <div key={question.id} className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
@@ -476,10 +500,6 @@ export default function ExamSolvePage({ params }) {
                             className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
                             onError={(e) => {
                               console.error('❌ Image failed to load:', question.media_url)
-                              e.target.style.border = '2px solid red'
-                            }}
-                            onLoad={() => {
-                              console.log('✅ Image loaded:', question.media_url?.substring(0, 100))
                             }}
                           />
                         </div>
@@ -510,7 +530,6 @@ export default function ExamSolvePage({ params }) {
                           className="w-full"
                           controlsList="nodownload"
                           onContextMenu={(e) => e.preventDefault()}
-                          onError={(e) => console.error('❌ Audio failed:', question.media_url)}
                         >
                           <source src={question.media_url} type="audio/mpeg" />
                           Ihr Browser unterstützt kein Audio
@@ -525,7 +544,7 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* ✅ الخيارات - تشمل now multiple_choice + image + audio */}
+                  {/* ✅ الخيارات (لـ multiple_choice + image + audio) */}
                   {showOptions && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
@@ -535,7 +554,8 @@ export default function ExamSolvePage({ params }) {
                           </p>
                         </div>
                       )}
-                      {options?.map((option, i) => {
+                      {options.map((option, i) => {
+                        if (typeof option !== 'string') return null
                         const currentAnswer = answers[question.id]
                         const isChecked = isMultiple
                           ? Array.isArray(currentAnswer) && currentAnswer.includes(option)
@@ -579,27 +599,30 @@ export default function ExamSolvePage({ params }) {
 
                   {question.question_type === 'matching' && (
                     <div className="space-y-2 md:space-y-3">
-                      {options?.map((pair, i) => (
-                        <div key={i} className="grid grid-cols-2 gap-2 md:gap-3">
-                          <div className="p-2 md:p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center flex items-center justify-center">
-                            <span className="font-bold text-blue-800 text-xs md:text-sm" dir="ltr">{pair.left}</span>
+                      {options.map((pair, i) => {
+                        if (typeof pair !== 'object') return null
+                        return (
+                          <div key={i} className="grid grid-cols-2 gap-2 md:gap-3">
+                            <div className="p-2 md:p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center flex items-center justify-center">
+                              <span className="font-bold text-blue-800 text-xs md:text-sm" dir="ltr">{pair.left}</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={answers[question.id]?.[i] || ''}
+                              onChange={(e) => {
+                                const current = answers[question.id] || {}
+                                setAnswers({
+                                  ...answers,
+                                  [question.id]: { ...current, [i]: e.target.value }
+                                })
+                              }}
+                              className="p-2 md:p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
+                              placeholder="Antwort..."
+                              dir="ltr"
+                            />
                           </div>
-                          <input
-                            type="text"
-                            value={answers[question.id]?.[i] || ''}
-                            onChange={(e) => {
-                              const current = answers[question.id] || {}
-                              setAnswers({
-                                ...answers,
-                                [question.id]: { ...current, [i]: e.target.value }
-                              })
-                            }}
-                            className="p-2 md:p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
-                            placeholder="Antwort..."
-                            dir="ltr"
-                          />
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -621,15 +644,6 @@ export default function ExamSolvePage({ params }) {
           </div>
         </form>
       </div>
-
-      <style jsx global>{`
-        audio::-webkit-media-controls-enclosure {
-          border-radius: 12px;
-        }
-        audio::-webkit-media-controls-panel {
-          background-color: #eff6ff;
-        }
-      `}</style>
     </div>
   )
 }

@@ -3,6 +3,41 @@ import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { examAttempts, studentAnswers, examQuestions, studentPoints, studentErrors } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { randomUUID } from 'crypto'
+
+// ✅ دالة مساعدة: تحويل أي قيمة لـ array of strings
+const toArray = (val) => {
+  if (val === null || val === undefined) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      if (Array.isArray(parsed)) return parsed
+      return [parsed]
+    } catch (e) {
+      return [val]
+    }
+  }
+  return [val]
+}
+
+// ✅ تطبيع الإجابة لمقارنة موحدة
+const normalizeValue = (v) => {
+  return String(v).trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+// ✅ استخراج الخيارات من options + فهرسة
+const getOptionsList = (options) => {
+  let parsed = options
+  try {
+    if (typeof options === 'string') parsed = JSON.parse(options)
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+  } catch (e) {
+    return []
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed.map(o => (typeof o === 'string' ? o : (o?.left ?? String(o)))).filter(Boolean)
+}
 
 export async function POST(request) {
   try {
@@ -38,6 +73,9 @@ export async function POST(request) {
       })
     }
 
+    // ✅ حذف أي إجابات قديمة (احتياط من auto-submit ثم manual)
+    await db.delete(studentAnswers).where(eq(studentAnswers.attempt_id, attempt_id))
+
     let totalScore = 0
 
     // ✅ حفظ الإجابات وحساب الدرجات
@@ -52,42 +90,61 @@ export async function POST(request) {
 
         const question = questions[0]
 
-        // ✅ استخراج الإجابات الصحيحة
-        let correctAnswers = []
-        try {
-          correctAnswers = typeof question.correct_answers === 'string'
-            ? JSON.parse(question.correct_answers)
-            : (question.correct_answers || [])
-          if (typeof correctAnswers === 'string') correctAnswers = JSON.parse(correctAnswers)
-        } catch (e) {
-          correctAnswers = []
-        }
+        // ✅ الإجابات الصحيحة
+        const correctAnswersRaw = toArray(question.correct_answers).length > 0
+          ? toArray(question.correct_answers)
+          : toArray(question.correct_answer)
 
-        // ✅ مقارنة الإجابات
-        let isCorrect = false
-        let awardedPoints = 0
+        // ✅ الخيارات لعمل الفهرسة
+        const optionsList = getOptionsList(question.options)
 
-        if (Array.isArray(correctAnswers) && correctAnswers.length > 0) {
-          // لو الإجابة مصفوفة (اختيار متعدد)
-          if (Array.isArray(answer)) {
-            const correctSet = correctAnswers.map(a => String(a)).sort().join(',')
-            const answerSet = answer.map(a => String(a)).sort().join(',')
-            isCorrect = correctSet === answerSet
-          } else {
-            // لو الإجابة واحدة
-            isCorrect = correctAnswers.map(a => String(a)).includes(String(answer))
+        // ✅ قائمة قيم مقبولة للتصحيح (تشمل: النص + الفهرس)
+        const correctValues = new Set()
+        for (const ca of correctAnswersRaw) {
+          // النص الأصلي
+          correctValues.add(normalizeValue(ca))
+          // لو رقم → ياخد النص من options
+          const asNum = Number(ca)
+          if (!isNaN(asNum) && optionsList[asNum] !== undefined) {
+            correctValues.add(normalizeValue(optionsList[asNum]))
           }
-        } else {
-          // نص عادي
-          isCorrect = String(answer).trim() === String(question.correct_answer || '').trim()
+          // لو نص → يدور على الفهرس
+          const idx = optionsList.findIndex(o => normalizeValue(o) === normalizeValue(ca))
+          if (idx !== -1) {
+            correctValues.add(normalizeValue(idx))
+          }
         }
 
-        awardedPoints = isCorrect ? (question.points || 1) : 0
+        // ✅ الإجابات اللي الطالب اختارها
+        const answerList = Array.isArray(answer) ? answer : [answer]
+        const answerValues = new Set()
+        for (const a of answerList) {
+          answerValues.add(normalizeValue(a))
+          const asNum = Number(a)
+          if (!isNaN(asNum) && optionsList[asNum] !== undefined) {
+            answerValues.add(normalizeValue(optionsList[asNum]))
+          }
+          const idx = optionsList.findIndex(o => normalizeValue(o) === normalizeValue(a))
+          if (idx !== -1) {
+            answerValues.add(normalizeValue(idx))
+          }
+        }
+
+        // ✅ المقارنة النهائية
+        let isCorrect = false
+        if (correctValues.size > 0 && answerValues.size > 0) {
+          // كل عنصر في answerValues موجود في correctValues والعكس
+          const allMatch = [...answerValues].every(v => correctValues.has(v))
+            && [...correctValues].every(v => answerValues.has(v))
+          isCorrect = allMatch
+        }
+
+        const awardedPoints = isCorrect ? (question.points || 1) : 0
         totalScore += awardedPoints
 
         // ✅ حفظ الإجابة
         await db.insert(studentAnswers).values({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           attempt_id: attempt_id,
           question_id: questionId,
           answer: JSON.stringify(answer),
@@ -96,22 +153,22 @@ export async function POST(request) {
           answered_at: new Date(),
         })
 
-        // ✅ تسجيل الخطأ لو غلط
+        // ✅ تسجيل الخطأ
         if (!isCorrect) {
           await db.insert(studentErrors).values({
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             student_id,
             question_id: questionId,
             attempt_id,
             student_answer: JSON.stringify(answer),
-            correct_answer: JSON.stringify(correctAnswers),
+            correct_answer: JSON.stringify(correctAnswersRaw),
             created_at: new Date(),
           })
         }
       }
     }
 
-    // ✅ تحديث حالة المحاولة
+    // ✅ تحديث المحاولة
     await db
       .update(examAttempts)
       .set({
