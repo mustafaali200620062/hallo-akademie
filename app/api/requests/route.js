@@ -14,6 +14,7 @@ export async function GET() {
         created_at: joinRequests.created_at,
         student_name: profiles.full_name,
         student_phone: profiles.phone,
+        student_password: profiles.password,      // ✅ جديد
         level_code: levels.code,
         level_title: levels.title,
       })
@@ -69,7 +70,6 @@ export async function PUT(request) {
         })
         .where(eq(profiles.id, requestData[0].student_id))
 
-      // ✅ استخدام new Date() مباشرة (بدون toISOString)
       await db
         .update(joinRequests)
         .set({
@@ -102,6 +102,56 @@ export async function PUT(request) {
 
   } catch (error) {
     console.error('❌ خطأ في تحديث الطلب:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+// ✅ جديد: تعيين كلمة مرور لطالب
+export async function PATCH(request) {
+  try {
+    const body = await request.json()
+    const { student_id, password } = body
+
+    if (!student_id || !password) {
+      return NextResponse.json(
+        { error: 'student_id and password are required' },
+        { status: 400 }
+      )
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json(
+        { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ تحقق من وجود الطالب
+    const students = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, student_id))
+
+    if (!students || students.length === 0) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+    }
+
+    // ✅ تحديث كلمة المرور
+    await db
+      .update(profiles)
+      .set({
+        password: password,
+        updated_at: new Date()
+      })
+      .where(eq(profiles.id, student_id))
+
+    return NextResponse.json({
+      success: true,
+      message: 'Password updated successfully'
+    })
+
+  } catch (error) {
+    console.error('❌ خطأ في تعيين كلمة المرور:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

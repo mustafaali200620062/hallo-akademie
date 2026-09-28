@@ -6,10 +6,13 @@ import { eq } from 'drizzle-orm'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { phone, full_name, level } = body
+    const { phone, full_name, level, password } = body
 
     if (!phone || !full_name || !level) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'All fields are required' },
+        { status: 400 }
+      )
     }
 
     // ✅ البحث عن الطالب
@@ -24,15 +27,27 @@ export async function POST(request) {
 
     const student = students[0]
 
+    // ✅ تحديث الباسورد لو اتبعت (احتياط)
+    if (password && typeof password === 'string' && password.length >= 6) {
+      await db
+        .update(profiles)
+        .set({
+          password: password,
+          full_name: full_name,
+          updated_at: new Date(),
+        })
+        .where(eq(profiles.id, student.id))
+    }
+
     // ✅ تحديث حالة الطلب
     await db
       .update(joinRequests)
       .set({ status: 'pending' })
       .where(eq(joinRequests.student_id, student.id))
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Student confirmed successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Student confirmed successfully',
     })
   } catch (error) {
     console.error('❌ خطأ في تأكيد تسجيل الطالب:', error)

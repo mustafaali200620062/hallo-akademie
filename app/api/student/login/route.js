@@ -5,18 +5,23 @@ import { eq } from 'drizzle-orm'
 
 export async function POST(request) {
   try {
-    const { phone } = await request.json()
+    const { phone, password } = await request.json()
 
-    if (!phone) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
+    // ✅ التحقق من المدخلات
+    if (!phone || !password) {
+      return NextResponse.json(
+        { error: 'رقم الهاتف وكلمة المرور مطلوبان' },
+        { status: 400 }
+      )
     }
 
-    // ✅ جلب بيانات الطالب (بدون .get())
+    // ✅ جلب بيانات الطالب
     const students = await db
       .select({
         id: profiles.id,
         full_name: profiles.full_name,
         phone: profiles.phone,
+        password: profiles.password,
         is_active: profiles.is_active,
         is_approved: profiles.is_approved,
         level_id: profiles.level_id,
@@ -27,15 +32,31 @@ export async function POST(request) {
       .where(eq(profiles.phone, phone))
 
     if (!students || students.length === 0) {
-      return NextResponse.json({ error: 'رقم الهاتف غير مسجل' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'رقم الهاتف غير مسجل' },
+        { status: 404 }
+      )
     }
 
     const student = students[0]
 
-    if (!student.is_active || !student.is_approved) {
-      return NextResponse.json({ error: 'حسابك غير مفعل. يرجى الانتظار حتى قبول طلبك' }, { status: 403 })
+    // ✅ التحقق من كلمة المرور
+    if (student.password !== password) {
+      return NextResponse.json(
+        { error: 'كلمة المرور غير صحيحة' },
+        { status: 401 }
+      )
     }
 
+    // ✅ التحقق من حالة الحساب
+    if (!student.is_active || !student.is_approved) {
+      return NextResponse.json(
+        { error: 'حسابك غير مفعل. يرجى الانتظار حتى قبول طلبك' },
+        { status: 403 }
+      )
+    }
+
+    // ✅ تسجيل الدخول بنجاح
     return NextResponse.json({
       success: true,
       user: {

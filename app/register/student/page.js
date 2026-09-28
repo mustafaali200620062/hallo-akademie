@@ -12,10 +12,14 @@ export default function RegisterStudentPage() {
   const [otp, setOtp] = useState('')
   const [fullName, setFullName] = useState('')
   const [level, setLevel] = useState('A1')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState('')
 
+  // ✅ تسجيل دخول الطالب (رقم + باسورد)
   const handleStudentLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -25,7 +29,7 @@ export default function RegisterStudentPage() {
       const res = await fetch('/api/student/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone })
+        body: JSON.stringify({ phone, password })
       })
 
       const data = await res.json()
@@ -44,7 +48,7 @@ export default function RegisterStudentPage() {
       }))
 
       setMessage('✅ تم تسجيل الدخول بنجاح! جاري التحويل...')
-      
+
       setTimeout(() => {
         router.push('/student')
       }, 500)
@@ -60,6 +64,19 @@ export default function RegisterStudentPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    // ✅ التحقق من الباسورد
+    if (password.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+      setLoading(false)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('كلمتا المرور غير متطابقتين')
+      setLoading(false)
+      return
+    }
 
     try {
       const checkRes = await fetch(`/api/check-phone?phone=${encodeURIComponent(phone)}`)
@@ -77,7 +94,8 @@ export default function RegisterStudentPage() {
         body: JSON.stringify({
           phone,
           full_name: fullName,
-          level
+          level,
+          password          // ✅ نبعت الباسورد
         })
       })
 
@@ -88,13 +106,13 @@ export default function RegisterStudentPage() {
       }
 
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
-      
+
       localStorage.setItem('temp_otp', generatedOtp)
       localStorage.setItem('temp_phone', phone)
-      
+
       setMessage(`تم إرسال الكود: ${generatedOtp}`)
       setStep('otp')
-      
+
     } catch (err) {
       setError(err.message)
     }
@@ -136,7 +154,8 @@ export default function RegisterStudentPage() {
         body: JSON.stringify({
           phone,
           full_name: fullName,
-          level
+          level,
+          password          // ✅ نبعت الباسورد برضو
         })
       })
 
@@ -161,18 +180,13 @@ export default function RegisterStudentPage() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center py-12 px-4 overflow-hidden">
-      {/* خلفية علم ألمانيا المتحرك */}
       <div className="absolute inset-0 w-full h-full">
-        <div className="absolute top-0 left-0 w-full h-1/3 bg-black animate-flag-wave" 
-             style={{ animationDelay: '0s' }}></div>
-        <div className="absolute top-1/3 left-0 w-full h-1/3 bg-red-600 animate-flag-wave" 
-             style={{ animationDelay: '0.2s' }}></div>
-        <div className="absolute top-2/3 left-0 w-full h-1/3 bg-yellow-400 animate-flag-wave" 
-             style={{ animationDelay: '0.4s' }}></div>
+        <div className="absolute top-0 left-0 w-full h-1/3 bg-black animate-flag-wave" style={{ animationDelay: '0s' }}></div>
+        <div className="absolute top-1/3 left-0 w-full h-1/3 bg-red-600 animate-flag-wave" style={{ animationDelay: '0.2s' }}></div>
+        <div className="absolute top-2/3 left-0 w-full h-1/3 bg-yellow-400 animate-flag-wave" style={{ animationDelay: '0.4s' }}></div>
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
       </div>
 
-      {/* البطاقة الشفافة */}
       <div className="relative z-10 max-w-md w-full">
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
           <div className="flex h-1 rounded-t-lg overflow-hidden -mt-8 -mx-8 mb-6">
@@ -186,7 +200,9 @@ export default function RegisterStudentPage() {
               <img src="/logo.png" alt="Logo" className="h-16 w-auto object-contain" />
             </div>
             <h2 className="text-3xl font-extrabold text-white">Hallöchen Akademie</h2>
-            <p className="text-white/70 font-medium mt-1">تسجيل طالب جديد</p>
+            <p className="text-white/70 font-medium mt-1">
+              {mode === 'login' ? 'تسجيل دخول الطالب' : 'تسجيل طالب جديد'}
+            </p>
           </div>
 
           <div className="flex gap-3 mb-6">
@@ -212,6 +228,7 @@ export default function RegisterStudentPage() {
             </button>
           </div>
 
+          {/* ═══ تسجيل الدخول ═══ */}
           {mode === 'login' && (
             <form className="space-y-5" onSubmit={handleStudentLogin}>
               {error && (
@@ -239,6 +256,28 @@ export default function RegisterStudentPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">كلمة المرور</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
+                    placeholder="••••••"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-xl"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -259,8 +298,9 @@ export default function RegisterStudentPage() {
             </form>
           )}
 
+          {/* ═══ التسجيل - خطوة 1 ═══ */}
           {mode === 'register' && step === 'phone' && (
-            <form className="space-y-5" onSubmit={sendOtp}>
+            <form className="space-y-4" onSubmit={sendOtp}>
               {error && (
                 <div className="bg-red-500/20 border border-red-500/50 text-white px-4 py-3 rounded-xl text-sm font-bold backdrop-blur-sm">
                   ❌ {error}
@@ -307,6 +347,54 @@ export default function RegisterStudentPage() {
                 </select>
               </div>
 
+              {/* ✅ كلمة المرور */}
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">كلمة المرور</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
+                    placeholder="6 أحرف على الأقل"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-xl"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {password.length > 0 && password.length < 6 && (
+                  <p className="text-xs text-red-400 font-bold mt-1">⚠️ 6 أحرف على الأقل</p>
+                )}
+              </div>
+
+              {/* ✅ تأكيد كلمة المرور */}
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">تأكيد كلمة المرور</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
+                  placeholder="أعد كتابة كلمة المرور"
+                  dir="ltr"
+                />
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <p className="text-xs text-red-400 font-bold mt-1">⚠️ كلمتا المرور غير متطابقتين</p>
+                )}
+                {confirmPassword.length > 0 && password === confirmPassword && password.length >= 6 && (
+                  <p className="text-xs text-green-400 font-bold mt-1">✅ متطابقتان</p>
+                )}
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -327,6 +415,7 @@ export default function RegisterStudentPage() {
             </form>
           )}
 
+          {/* ═══ OTP ═══ */}
           {mode === 'register' && step === 'otp' && (
             <form className="space-y-5" onSubmit={verifyOtp}>
               {error && (
@@ -376,6 +465,7 @@ export default function RegisterStudentPage() {
             </form>
           )}
 
+          {/* ═══ في انتظار القبول ═══ */}
           {mode === 'register' && step === 'wait' && (
             <div className="text-center py-8">
               <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 backdrop-blur-sm">

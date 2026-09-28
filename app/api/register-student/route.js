@@ -7,10 +7,21 @@ import { randomUUID } from 'crypto'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { phone, full_name, level } = body
+    const { phone, full_name, level, password } = body
 
-    if (!phone || !full_name || !level) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
+    if (!phone || !full_name || !level || !password) {
+      return NextResponse.json(
+        { error: 'All fields are required' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ التحقق من كلمة المرور
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json(
+        { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' },
+        { status: 400 }
+      )
     }
 
     // ✅ جلب دور الطالب
@@ -36,6 +47,19 @@ export async function POST(request) {
     const studentRole = studentRoles[0]
     const levelData = levelsData[0]
 
+    // ✅ تحقق إن رقم الهاتف مش مستخدم
+    const existing = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.phone, phone))
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json(
+        { error: 'رقم الهاتف مسجل بالفعل' },
+        { status: 400 }
+      )
+    }
+
     // ✅ توليد معرفات
     const studentId = randomUUID()
     const requestId = randomUUID()
@@ -45,6 +69,7 @@ export async function POST(request) {
       id: studentId,
       full_name: full_name,
       phone: phone,
+      password: password,         // ✅ كلمة المرور
       level_id: levelData.id,
       role_id: studentRole.id,
       is_active: false,
@@ -63,10 +88,10 @@ export async function POST(request) {
 
     console.log('✅ تم تسجيل الطالب:', full_name, phone)
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Student registered successfully',
-      student_id: studentId
+      student_id: studentId,
     })
   } catch (error) {
     console.error('❌ خطأ في تسجيل الطالب:', error)
