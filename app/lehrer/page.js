@@ -238,8 +238,8 @@ export default function LehrerPage() {
           <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
             <div className="text-4xl mb-4">👀</div>
             <h3 className="text-xl font-extrabold mb-2 text-gray-900">متابعة الاختبارات</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
-            <Link href="/lehrer/exam-monitor" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
+            <p className="font-bold text-gray-500">شاهد الطلاب اللي بيحلوا الاختبارات حالياً</p>
+            <Link href="/lehrer/exams/monitor" className="mt-4 inline-block bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors">
               الذهاب إلى المتابعة ←
             </Link>
           </div>
