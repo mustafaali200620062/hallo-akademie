@@ -7,17 +7,20 @@ export default function TeachersManagementPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [teachers, setTeachers] = useState([])
+  const [allLevels, setAllLevels] = useState([])
+  const [teacherLevelsMap, setTeacherLevelsMap] = useState({}) // { teacherId: [levelIds] }
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
-    full_name: ''
+    full_name: '',
+    levels: []
   })
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     checkUser()
-    fetchTeachers()
+    fetchAll()
   }, [])
 
   const checkUser = async () => {
@@ -33,18 +36,56 @@ export default function TeachersManagementPage() {
     }
   }
 
-  const fetchTeachers = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await fetch('/api/teachers')
-      const data = await res.json()
-      if (res.ok) {
-        setTeachers(data || [])
+      // ✅ جلب المدرسين + المستويات بالتوازي
+      const [teachersRes, levelsRes] = await Promise.all([
+        fetch('/api/teachers'),
+        fetch('/api/levels')
+      ])
+
+      const teachersData = await teachersRes.json()
+      const levelsData = await levelsRes.json()
+
+      if (teachersRes.ok) setTeachers(teachersData || [])
+      if (levelsRes.ok) setAllLevels(levelsData || [])
+
+      // ✅ جلب مستويات كل مدرس
+      if (teachersRes.ok && Array.isArray(teachersData)) {
+        const levelsMap = {}
+        for (const teacher of teachersData) {
+          try {
+            const tlRes = await fetch(`/api/admin/teacher-levels?teacher_id=${teacher.id}`)
+            const tlData = await tlRes.json()
+            if (tlRes.ok && Array.isArray(tlData)) {
+              levelsMap[teacher.id] = tlData.map(item => item.level_id)
+            } else {
+              levelsMap[teacher.id] = []
+            }
+          } catch (e) {
+            levelsMap[teacher.id] = []
+          }
+        }
+        setTeacherLevelsMap(levelsMap)
       }
+
     } catch (error) {
-      console.error('Error fetching teachers:', error)
+      console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLevelToggle = (levelId) => {
+    setFormData(prev => {
+      const isSelected = prev.levels.includes(levelId)
+      return {
+        ...prev,
+        levels: isSelected
+          ? prev.levels.filter(id => id !== levelId)
+          : [...prev.levels, levelId]
+      }
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -52,13 +93,19 @@ export default function TeachersManagementPage() {
     setError(null)
     setSuccess(null)
 
+    if (formData.levels.length === 0) {
+      setError('⚠️ الرجاء اختيار مستوى واحد على الأقل')
+      return
+    }
+
     try {
       const response = await fetch('/api/admin/add-teacher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
-          full_name: formData.full_name
+          full_name: formData.full_name,
+          levels: formData.levels
         })
       })
 
@@ -70,8 +117,8 @@ export default function TeachersManagementPage() {
 
       setSuccess('✅ تم إضافة المدرس بنجاح! كلمة المرور الافتراضية: 123123')
       setShowForm(false)
-      setFormData({ email: '', full_name: '' })
-      await fetchTeachers()
+      setFormData({ email: '', full_name: '', levels: [] })
+      await fetchAll()
 
     } catch (error) {
       setError(error.message)
@@ -91,10 +138,19 @@ export default function TeachersManagementPage() {
         throw new Error(data.error || 'حدث خطأ')
       }
 
-      await fetchTeachers()
+      await fetchAll()
     } catch (error) {
       setError(error.message)
     }
+  }
+
+  // ✅ عرض أسماء المستويات
+  const getLevelCodes = (teacherId) => {
+    const levelIds = teacherLevelsMap[teacherId] || []
+    if (levelIds.length === 0) return null
+    return levelIds
+      .map(id => allLevels.find(l => l.id === id)?.code)
+      .filter(Boolean)
   }
 
   if (loading) {
@@ -176,6 +232,52 @@ export default function TeachersManagementPage() {
                 />
               </div>
 
+              {/* ✅ المستويات */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  🎓 المستويات التي سيدرّسها <span className="text-red-500">*</span>
+                </label>
+
+                {allLevels.length === 0 ? (
+                  <p className="text-gray-500 text-sm font-bold">لا توجد مستويات متاحة</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {allLevels.map((level) => {
+                      const isSelected = formData.levels.includes(level.id)
+                      return (
+                        <label
+                          key={level.id}
+                          className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-green-50 border-green-400 shadow-md'
+                              : 'bg-white border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleLevelToggle(level.id)}
+                            className="w-5 h-5 text-green-600 rounded"
+                          />
+                          <div>
+                            <div className={`font-extrabold ${isSelected ? 'text-green-800' : 'text-gray-800'}`}>
+                              {level.code}
+                            </div>
+                            <div className="text-xs text-gray-500 font-bold">{level.title}</div>
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {formData.levels.length > 0 && (
+                  <p className="text-xs text-green-700 font-bold mt-3">
+                    ✅ تم اختيار {formData.levels.length} مستوى
+                  </p>
+                )}
+              </div>
+
               <button
                 type="submit"
                 className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
@@ -193,6 +295,7 @@ export default function TeachersManagementPage() {
                 <tr>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الاسم</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">البريد الإلكتروني</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">المستويات</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">كلمة المرور</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">تاريخ التسجيل</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">الإجراءات</th>
@@ -201,34 +304,53 @@ export default function TeachersManagementPage() {
               <tbody className="divide-y divide-gray-200">
                 {teachers.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500 font-bold">
+                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500 font-bold">
                       <div className="text-4xl mb-2">👨‍🏫</div>
                       لا يوجد مدرسين
                     </td>
                   </tr>
                 ) : (
-                  teachers.map((teacher) => (
-                    <tr key={teacher.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-bold text-gray-900">{teacher.full_name}</td>
-                      <td className="px-6 py-4 text-gray-600">{teacher.email || 'غير متوفر'}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono text-sm font-bold">
-                          {teacher.password || '123123'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {new Date(teacher.created_at).toLocaleDateString('ar-EG')}
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleDelete(teacher.id)}
-                          className="text-red-600 hover:text-red-800 font-bold transition-colors"
-                        >
-                          🗑️ حذف
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  teachers.map((teacher) => {
+                    const levelCodes = getLevelCodes(teacher.id)
+                    return (
+                      <tr key={teacher.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-bold text-gray-900">{teacher.full_name}</td>
+                        <td className="px-6 py-4 text-gray-600">{teacher.email || 'غير متوفر'}</td>
+                        <td className="px-6 py-4">
+                          {levelCodes && levelCodes.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {levelCodes.map((code, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-extrabold"
+                                >
+                                  {code}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs font-bold">بدون مستويات</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono text-sm font-bold">
+                            {teacher.password || '123123'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {new Date(teacher.created_at).toLocaleDateString('ar-EG')}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleDelete(teacher.id)}
+                            className="text-red-600 hover:text-red-800 font-bold transition-colors"
+                          >
+                            🗑️ حذف
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
