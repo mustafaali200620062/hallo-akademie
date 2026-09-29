@@ -46,6 +46,18 @@ export const teacherLevels = pgTable('teacher_levels', {
   uniqueTeacherLevel: unique().on(table.teacher_id, table.level_id),
 }))
 
+// ========== ✅ سجل تعديلات النقاط (يدوية) ==========
+export const pointsHistory = pgTable('points_history', {
+  id: text('id').primaryKey(),
+  student_id: text('student_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  teacher_id: text('teacher_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  points_change: integer('points_change').notNull(),     // موجب أو سالب
+  reason: text('reason'),                                 // السبب (اختياري)
+  previous_total: integer('previous_total').default(0),   // النقاط قبل التعديل
+  new_total: integer('new_total').default(0),             // النقاط بعد التعديل
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
 // ========== طلبات الانضمام ==========
 export const joinRequests = pgTable('join_requests', {
   id: text('id').primaryKey(),
