@@ -37,7 +37,6 @@ export default function LehrerForumPage() {
     try {
       const userData = JSON.parse(localStorage.getItem('user'))
 
-      // جلب مستويات المدرس
       const groupsRes = await fetch('/api/groups')
       const groupsData = await groupsRes.json()
       let teacherLevelIds = []
@@ -47,7 +46,6 @@ export default function LehrerForumPage() {
         setTeacherLevels(teacherLevelIds)
       }
 
-      // جلب المنشورات
       const postsRes = await fetch('/api/forum/posts')
       const postsData = await postsRes.json()
       if (postsRes.ok) {
@@ -55,7 +53,6 @@ export default function LehrerForumPage() {
         setPosts(filteredPosts || [])
       }
 
-      // جلب المستويات
       const levelsRes = await fetch('/api/levels')
       const levelsData = await levelsRes.json()
       if (levelsRes.ok) setLevels(levelsData || [])
@@ -89,11 +86,7 @@ export default function LehrerForumPage() {
       setSuccess('✅ تم نشر المنشور بنجاح!')
       await fetchData()
       setShowForm(false)
-      setFormData({
-        title: '',
-        body: '',
-        level_id: ''
-      })
+      setFormData({ title: '', body: '', level_id: '' })
       setTimeout(() => setSuccess(null), 3000)
 
     } catch (error) {
@@ -109,10 +102,7 @@ export default function LehrerForumPage() {
       const response = await fetch('/api/forum/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          post_id: postId,
-          body: content
-        })
+        body: JSON.stringify({ post_id: postId, body: content })
       })
 
       const data = await response.json()
@@ -134,9 +124,7 @@ export default function LehrerForumPage() {
     if (!confirm('هل أنت متأكد من حذف هذا المنشور؟')) return
 
     try {
-      const response = await fetch(`/api/forum/posts?id=${postId}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/forum/posts?id=${postId}`, { method: 'DELETE' })
 
       if (!response.ok) {
         const data = await response.json()
@@ -153,9 +141,7 @@ export default function LehrerForumPage() {
     if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) return
 
     try {
-      const response = await fetch(`/api/forum/comments?id=${commentId}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/forum/comments?id=${commentId}`, { method: 'DELETE' })
 
       if (!response.ok) {
         const data = await response.json()
@@ -199,19 +185,24 @@ export default function LehrerForumPage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
 
-      {/* ═══ Header ═══ */}
+      {/* ═══ Header متناسق ═══ */}
       <div className="bg-orange-500 text-white shadow-lg sticky top-0 z-30 safe-top">
-        <div className="max-w-3xl mx-auto px-3 md:px-4 py-3 md:py-4">
-          <div className="flex justify-between items-center gap-2">
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              <img src="/logo.png" alt="Logo" className="h-8 md:h-10 w-auto flex-shrink-0" />
-              <h1 className="text-lg md:text-2xl font-bold truncate">المنتدى</h1>
+        <div className="max-w-3xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <img src="/logo.png" alt="Logo" className="h-8 w-8 md:h-10 md:w-10 object-contain flex-shrink-0" />
+              <h1 className="text-base md:text-xl font-extrabold truncate">المنتدى</h1>
+              {teacherLevels.length > 0 && (
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0">
+                  👨‍🏫
+                </span>
+              )}
             </div>
             <button
               onClick={() => router.push('/lehrer')}
-              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
+              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
             >
-              ← العودة
+              ← رجوع
             </button>
           </div>
         </div>
@@ -219,7 +210,6 @@ export default function LehrerForumPage() {
 
       <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
 
-        {/* ═══ Alerts ═══ */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-3 md:px-4 py-2.5 md:py-3 rounded-lg mb-3 md:mb-4 font-bold text-xs md:text-sm fade-in-up">
             ❌ {error}
@@ -232,7 +222,6 @@ export default function LehrerForumPage() {
           </div>
         )}
 
-        {/* ═══ Composer Bar ═══ */}
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
@@ -250,15 +239,11 @@ export default function LehrerForumPage() {
           </button>
         )}
 
-        {/* ═══ Composer Form ═══ */}
         {showForm && (
           <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-4 md:mb-6 border border-gray-100 fade-in-up">
             <div className="flex justify-between items-center mb-3 md:mb-4">
               <h2 className="text-base md:text-lg font-extrabold text-gray-800">✏️ منشور جديد</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-700 text-xl md:text-2xl p-1 active:scale-90"
-              >
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-700 text-xl md:text-2xl p-1 active:scale-90">
                 ✕
               </button>
             </div>
@@ -266,62 +251,43 @@ export default function LehrerForumPage() {
             <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
               <div>
                 <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">العنوان</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
+                <input type="text" required value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3.5 md:px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 text-gray-900 font-bold text-sm md:text-base transition-colors"
-                  placeholder="عنوان المنشور"
-                />
+                  placeholder="عنوان المنشور" />
               </div>
-
               <div>
                 <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">المحتوى</label>
-                <textarea
-                  required
-                  value={formData.body}
+                <textarea required value={formData.body}
                   onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                   className="w-full px-3.5 md:px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 text-gray-900 font-medium text-sm md:text-base transition-colors"
-                  rows="4"
-                  placeholder="محتوى المنشور..."
-                />
+                  rows="4" placeholder="محتوى المنشور..." />
               </div>
-
               <div>
                 <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">المستوى</label>
-                <select
-                  required
-                  value={formData.level_id}
+                <select required value={formData.level_id}
                   onChange={(e) => setFormData({ ...formData, level_id: e.target.value })}
-                  className="w-full px-3.5 md:px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 text-gray-900 font-bold text-sm md:text-base"
-                >
+                  className="w-full px-3.5 md:px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 text-gray-900 font-bold text-sm md:text-base">
                   <option value="">اختر المستوى</option>
                   {levels.filter(l => teacherLevels.includes(l.id)).map((level) => (
-                    <option key={level.id} value={level.id}>
-                      {level.code} - {level.title}
-                    </option>
+                    <option key={level.id} value={level.id}>{level.code} - {level.title}</option>
                   ))}
                 </select>
               </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 md:px-8 py-3 rounded-xl font-extrabold transition-all active:scale-95 shadow-lg text-sm md:text-base btn-app"
-              >
+              <button type="submit"
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 md:px-8 py-3 rounded-xl font-extrabold transition-all active:scale-95 shadow-lg text-sm md:text-base btn-app">
                 ✅ نشر
               </button>
             </form>
           </div>
         )}
 
-        {/* ═══ Posts ═══ */}
         <div className="space-y-3 md:space-y-4">
           {posts.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center text-gray-500 border border-gray-100 fade-in-up">
               <div className="text-5xl md:text-6xl mb-4">💬</div>
               <p className="text-base md:text-xl font-extrabold">لا توجد منشورات</p>
-              <p className="text-xs md:text-sm font-bold mt-2">كن أول من ينشر في هذا المنتدى!</p>
+              <p className="text-xs md:text-sm font-bold mt-2">كن أول من ينشر!</p>
             </div>
           ) : (
             posts.map((post) => {
@@ -330,8 +296,6 @@ export default function LehrerForumPage() {
 
               return (
                 <div key={post.id} className="bg-white rounded-2xl shadow-md p-3.5 md:p-6 border border-gray-100 fade-in-up">
-
-                  {/* Post Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-extrabold text-sm md:text-lg flex-shrink-0">
@@ -350,15 +314,12 @@ export default function LehrerForumPage() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => deletePost(post.id)}
-                      className="text-gray-400 hover:text-red-600 transition-colors p-1.5 md:p-2 hover:bg-red-50 rounded-full flex-shrink-0 active:scale-90 text-sm md:text-base"
-                    >
+                    <button onClick={() => deletePost(post.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors p-1.5 md:p-2 hover:bg-red-50 rounded-full flex-shrink-0 active:scale-90 text-sm md:text-base">
                       🗑️
                     </button>
                   </div>
 
-                  {/* Post Body */}
                   <div className="mt-3 md:mr-16">
                     <h3 className="text-base md:text-xl font-extrabold text-gray-900 mb-1.5 md:mb-2">
                       {post.title}
@@ -368,14 +329,11 @@ export default function LehrerForumPage() {
                     </p>
                   </div>
 
-                  {/* Actions Bar */}
                   <div className="mt-3 md:mt-4 md:mr-16 flex items-center gap-4 md:gap-6 border-t border-gray-100 pt-2.5 md:pt-3">
-                    <button
-                      onClick={() => toggleComments(post.id)}
+                    <button onClick={() => toggleComments(post.id)}
                       className={`flex items-center gap-1.5 md:gap-2 transition-colors font-bold text-xs md:text-sm active:scale-95 ${
                         isExpanded ? 'text-orange-600' : 'text-gray-500 hover:text-orange-600'
-                      }`}
-                    >
+                      }`}>
                       💬 <span>{commentsCount}</span>
                     </button>
                     <button className="flex items-center gap-1.5 md:gap-2 text-gray-500 hover:text-green-600 transition-colors font-bold text-xs md:text-sm active:scale-95">
@@ -386,7 +344,6 @@ export default function LehrerForumPage() {
                     </button>
                   </div>
 
-                  {/* Comments (Expandable) */}
                   {isExpanded && (
                     <div className="mt-3 md:mt-4 md:mr-16 border-t border-gray-100 pt-3 md:pt-4 fade-in-up">
                       <div className="space-y-2 md:space-y-3">
@@ -413,10 +370,8 @@ export default function LehrerForumPage() {
                                   {comment.body}
                                 </p>
                               </div>
-                              <button
-                                onClick={() => deleteComment(comment.id)}
-                                className="text-gray-400 hover:text-red-600 transition-colors text-[10px] md:text-xs flex-shrink-0 p-1 active:scale-90"
-                              >
+                              <button onClick={() => deleteComment(comment.id)}
+                                className="text-gray-400 hover:text-red-600 transition-colors text-[10px] md:text-xs flex-shrink-0 p-1 active:scale-90">
                                 🗑️
                               </button>
                             </div>
@@ -424,27 +379,14 @@ export default function LehrerForumPage() {
                         )}
                       </div>
 
-                      {/* Add Comment */}
                       <div className="mt-2.5 md:mt-3 flex gap-1.5 md:gap-2">
-                        <input
-                          type="text"
-                          value={commentData[post.id] || ''}
-                          onChange={(e) => setCommentData({
-                            ...commentData,
-                            [post.id]: e.target.value
-                          })}
+                        <input type="text" value={commentData[post.id] || ''}
+                          onChange={(e) => setCommentData({ ...commentData, [post.id]: e.target.value })}
                           className="flex-1 min-w-0 px-3 md:px-4 py-2 border-2 border-gray-200 rounded-full focus:outline-none focus:border-orange-500 text-gray-900 font-medium text-xs md:text-sm transition-colors"
                           placeholder="اكتب تعليقك..."
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleComment(post.id)
-                            }
-                          }}
-                        />
-                        <button
-                          onClick={() => handleComment(post.id)}
-                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-4 md:px-6 py-2 rounded-full font-extrabold text-xs md:text-sm transition-all active:scale-95 flex-shrink-0"
-                        >
+                          onKeyPress={(e) => { if (e.key === 'Enter') handleComment(post.id) }} />
+                        <button onClick={() => handleComment(post.id)}
+                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-4 md:px-6 py-2 rounded-full font-extrabold text-xs md:text-sm transition-all active:scale-95 flex-shrink-0">
                           إرسال
                         </button>
                       </div>

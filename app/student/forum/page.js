@@ -224,29 +224,38 @@ export default function StudentForumPage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
 
-      {/* ═══ Header ═══ */}
+      {/* ═══ Header متناسق ═══ */}
       <div className="bg-purple-600 text-white shadow-lg sticky top-0 z-30 safe-top">
-        <div className="max-w-3xl mx-auto px-3 md:px-4 py-3 md:py-4">
-          <div className="flex justify-between items-center gap-2">
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              <img src="/logo.png" alt="Logo" className="h-8 md:h-10 w-auto flex-shrink-0" />
-              <h1 className="text-lg md:text-2xl font-extrabold truncate">المنتدى</h1>
+        <div className="max-w-3xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* الجنب الأيمن (في RTL): لوجو صغير + العنوان + الشارة */}
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="h-8 w-8 md:h-10 md:w-10 object-contain flex-shrink-0"
+              />
+              <h1 className="text-base md:text-xl font-extrabold truncate">
+                المنتدى
+              </h1>
               {userLevelCode && !isAdmin && (
-                <span className="bg-white/20 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-sm font-bold flex-shrink-0">
-                  📚 {userLevelCode}
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0">
+                  {userLevelCode}
                 </span>
               )}
               {isAdmin && (
-                <span className="bg-white/20 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-sm font-bold flex-shrink-0">
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0">
                   👑
                 </span>
               )}
             </div>
+
+            {/* الجنب الأيسر: زر الرجوع */}
             <button
               onClick={() => router.push('/student')}
-              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
+              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
             >
-              ← العودة
+              ← رجوع
             </button>
           </div>
         </div>

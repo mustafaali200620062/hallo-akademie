@@ -189,22 +189,31 @@ export default function AssistentForumPage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
 
-      {/* ═══ Header ═══ */}
+      {/* ═══ Header — سطر واحد متناسق ═══ */}
       <div className="bg-blue-600 text-white shadow-lg sticky top-0 z-30 safe-top">
-        <div className="max-w-3xl mx-auto px-3 md:px-4 py-3 md:py-4">
-          <div className="flex justify-between items-center gap-2">
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              <img src="/logo.png" alt="Logo" className="h-8 md:h-10 w-auto flex-shrink-0" />
-              <h1 className="text-lg md:text-2xl font-bold truncate">المنتدى</h1>
-              <span className="bg-white/20 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-sm font-bold flex-shrink-0">
+        <div className="max-w-3xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* الجنب الأيمن (RTL): لوجو صغير + عنوان + شارة */}
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="h-8 w-8 md:h-10 md:w-10 object-contain flex-shrink-0"
+              />
+              <h1 className="text-base md:text-xl font-extrabold truncate">
+                المنتدى
+              </h1>
+              <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0">
                 🤝
               </span>
             </div>
+
+            {/* الجنب الأيسر: زر الرجوع */}
             <button
               onClick={() => router.push('/assistent')}
-              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
+              className="bg-white/20 hover:bg-white/30 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-bold transition-colors flex-shrink-0 active:scale-95"
             >
-              ← العودة
+              ← رجوع
             </button>
           </div>
         </div>
@@ -236,7 +245,6 @@ export default function AssistentForumPage() {
             </span>
           </div>
 
-          {/* Level Filter */}
           <div className="flex gap-1.5 md:gap-2 overflow-x-auto no-scrollbar pb-1">
             <button
               onClick={() => setFilterLevel('all')}
@@ -368,7 +376,6 @@ export default function AssistentForumPage() {
               return (
                 <div key={post.id} className="bg-white rounded-2xl shadow-md p-3.5 md:p-6 border border-gray-100 fade-in-up">
 
-                  {/* Post Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-extrabold text-sm md:text-lg flex-shrink-0">
@@ -395,7 +402,6 @@ export default function AssistentForumPage() {
                     </button>
                   </div>
 
-                  {/* Post Body */}
                   <div className="mt-3 md:mr-16">
                     <h3 className="text-base md:text-xl font-extrabold text-gray-900 mb-1.5 md:mb-2">
                       {post.title}
@@ -405,7 +411,6 @@ export default function AssistentForumPage() {
                     </p>
                   </div>
 
-                  {/* Actions Bar */}
                   <div className="mt-3 md:mt-4 md:mr-16 flex items-center gap-4 md:gap-6 border-t border-gray-100 pt-2.5 md:pt-3">
                     <button
                       onClick={() => toggleComments(post.id)}
@@ -423,7 +428,6 @@ export default function AssistentForumPage() {
                     </button>
                   </div>
 
-                  {/* Comments (Expandable) */}
                   {isExpanded && (
                     <div className="mt-3 md:mt-4 md:mr-16 border-t border-gray-100 pt-3 md:pt-4 fade-in-up">
                       <div className="space-y-2 md:space-y-3">
@@ -461,7 +465,6 @@ export default function AssistentForumPage() {
                         )}
                       </div>
 
-                      {/* Add Comment */}
                       <div className="mt-2.5 md:mt-3 flex gap-1.5 md:gap-2">
                         <input
                           type="text"
