@@ -146,7 +146,6 @@ export default function LehrerPage() {
             {/* ═══ آخر النشاطات + أداء الطلاب ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
 
-              {/* آخر النشاطات */}
               <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
                 <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📋 آخر النشاطات
@@ -174,7 +173,6 @@ export default function LehrerPage() {
                 </div>
               </div>
 
-              {/* أداء الطلاب */}
               <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
                 <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📊 أداء الطلاب
@@ -262,7 +260,6 @@ export default function LehrerPage() {
           </div>
         )}
 
-        {/* باقي التابات */}
         {activeTab === 'groups' && (
           <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📚</div>
@@ -292,6 +289,23 @@ export default function LehrerPage() {
             <p className="font-bold text-gray-500 text-sm md:text-base">شاهد الطلاب اللي بيحلوا الاختبارات حالياً</p>
             <Link href="/lehrer/exams/monitor" className="mt-4 inline-block bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors">
               الذهاب إلى المتابعة ←
+            </Link>
+          </div>
+        )}
+
+        {/* ✅ قسم الألعاب */}
+        {activeTab === 'games' && (
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
+            <div className="text-5xl md:text-6xl mb-4">🎮</div>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">الألعاب</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base mb-4">
+              أنشئ ألعاب تفاعلية لمجموعاتك
+            </p>
+            <Link
+              href="/lehrer/games"
+              className="inline-block bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white px-8 py-3 rounded-xl font-extrabold transition-all active:scale-95 shadow-lg"
+            >
+              🚀 إدارة الألعاب
             </Link>
           </div>
         )}
@@ -413,6 +427,19 @@ export default function LehrerPage() {
           >
             <span className="text-xl">👀</span> متابعة الاختبارات
           </button>
+
+          {/* ✅ زر الألعاب */}
+          <button
+            onClick={() => setActiveTab('games')}
+            className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
+              activeTab === 'games'
+                ? 'bg-red-400/20 text-red-400 shadow-lg shadow-red-500/10 border border-red-400/20'
+                : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
+            }`}
+          >
+            <span className="text-xl">🎮</span> الألعاب
+          </button>
+
           <button
             onClick={() => setActiveTab('reentry')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${

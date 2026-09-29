@@ -297,12 +297,28 @@ export default function StudentPage() {
             </Link>
           </div>
         )}
+
+        {/* ✅ قسم الألعاب */}
+        {activeTab === 'games' && (
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
+            <div className="text-5xl md:text-6xl mb-4">🎮</div>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">الألعاب</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base mb-4">
+              العب وتنافس مع أصحابك!
+            </p>
+            <Link
+              href="/student/games"
+              className="inline-block bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-8 py-3 rounded-xl font-extrabold transition-all active:scale-95 shadow-lg"
+            >
+              🚀 ادخل الألعاب
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* القائمة الجانبية / Bottom Nav */}
       <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
 
-        {/* Header (Desktop only) */}
         <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-lg shadow-green-500/25">
@@ -315,7 +331,6 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* User (Desktop only) */}
         <div className="p-6 border-b border-white/10 sidebar-user">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-2xl text-white font-extrabold shadow-lg shadow-green-500/25">
@@ -333,7 +348,6 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* Nav (mobile + desktop) */}
         <nav className="p-4 space-y-1.5">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -385,9 +399,18 @@ export default function StudentPage() {
           >
             <span className="text-xl">📊</span> Rank
           </button>
+          <button
+            onClick={() => setActiveTab('games')}
+            className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
+              activeTab === 'games'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
+                : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
+            }`}
+          >
+            <span className="text-xl">🎮</span> الألعاب
+          </button>
         </nav>
 
-        {/* Footer / Logout */}
         <div className="p-4 md:p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {
