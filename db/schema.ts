@@ -46,15 +46,15 @@ export const teacherLevels = pgTable('teacher_levels', {
   uniqueTeacherLevel: unique().on(table.teacher_id, table.level_id),
 }))
 
-// ========== ✅ سجل تعديلات النقاط (يدوية) ==========
+// ========== ✅ سجل تعديلات النقاط ==========
 export const pointsHistory = pgTable('points_history', {
   id: text('id').primaryKey(),
   student_id: text('student_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   teacher_id: text('teacher_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
-  points_change: integer('points_change').notNull(),     // موجب أو سالب
-  reason: text('reason'),                                 // السبب (اختياري)
-  previous_total: integer('previous_total').default(0),   // النقاط قبل التعديل
-  new_total: integer('new_total').default(0),             // النقاط بعد التعديل
+  points_change: integer('points_change').notNull(),
+  reason: text('reason'),
+  previous_total: integer('previous_total').default(0),
+  new_total: integer('new_total').default(0),
   created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
 })
 
@@ -267,5 +267,67 @@ export const allowedEmails = pgTable('allowed_emails', {
   email: text('email').notNull().unique(),
   role_name: text('role_name').notNull(),
   created_by: text('created_by').references(() => profiles.id),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ═══════════════════════════════════════════════════════════
+// 🎮 نظام الألعاب (GAMES)
+// ═══════════════════════════════════════════════════════════
+
+// ========== 1. الألعاب (اللي المدرس بيعملها) ==========
+export const games = pgTable('games', {
+  id: text('id').primaryKey(),
+  teacher_id: text('teacher_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  group_id: text('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  game_type: text('game_type').notNull().default('matching'),  // matching | ...
+  mode: text('mode').notNull().default('solo'),                // solo | teams
+  status: text('status').notNull().default('draft'),           // draft | ready | active | closed
+  content: text('content'),                                     // JSON: { pairs: [...] }
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updated_at: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ========== 2. جلسات اللعب ==========
+export const gameSessions = pgTable('game_sessions', {
+  id: text('id').primaryKey(),
+  game_id: text('game_id').notNull().references(() => games.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('active'),           // active | ended
+  started_at: timestamp('started_at').default(sql`CURRENT_TIMESTAMP`),
+  ended_at: timestamp('ended_at'),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ========== 3. الفرق (للوضع الجماعي) ==========
+export const gameTeams = pgTable('game_teams', {
+  id: text('id').primaryKey(),
+  session_id: text('session_id').notNull().references(() => gameSessions.id, { onDelete: 'cascade' }),
+  team_name: text('team_name').notNull(),                      // فريق أ / فريق ب
+  team_color: text('team_color').default('#3b82f6'),          // لون الفريق
+  team_order: integer('team_order').default(1),                // 1, 2, 3...
+  total_score: integer('total_score').default(0),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ========== 4. اللاعبين في كل جلسة ==========
+export const gamePlayers = pgTable('game_players', {
+  id: text('id').primaryKey(),
+  session_id: text('session_id').notNull().references(() => gameSessions.id, { onDelete: 'cascade' }),
+  student_id: text('student_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  team_id: text('team_id').references(() => gameTeams.id, { onDelete: 'set null' }),  // null = فردي
+  score: integer('score').default(0),
+  is_joined: boolean('is_joined').default(false),
+  joined_at: timestamp('joined_at'),
+  created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+})
+
+// ========== 5. إجابات اللاعبين (كل مطابقة صح) ==========
+export const gameAnswers = pgTable('game_answers', {
+  id: text('id').primaryKey(),
+  session_id: text('session_id').notNull().references(() => gameSessions.id, { onDelete: 'cascade' }),
+  player_id: text('player_id').notNull().references(() => gamePlayers.id, { onDelete: 'cascade' }),
+  pair_index: integer('pair_index').notNull(),                 // رقم الزوج اللي حله
+  is_correct: boolean('is_correct').default(false),
+  answered_at: timestamp('answered_at').default(sql`CURRENT_TIMESTAMP`),
   created_at: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
 })
