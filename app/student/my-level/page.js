@@ -8,6 +8,7 @@ export default function StudentMyLevelPage() {
   const [loading, setLoading] = useState(true)
   const [studentData, setStudentData] = useState(null)
   const [errors, setErrors] = useState([])
+  const [pointsHistory, setPointsHistory] = useState([])
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -30,7 +31,6 @@ export default function StudentMyLevelPage() {
 
   const fetchData = async (studentId) => {
     try {
-      // ✅ استخدام API واحد بدل اتنين
       const res = await fetch(`/api/student/dashboard?student_id=${studentId}`)
 
       if (!res.ok) {
@@ -51,6 +51,7 @@ export default function StudentMyLevelPage() {
       })
 
       setErrors(data.errors || [])
+      setPointsHistory(data.pointsHistory || [])
 
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -60,11 +61,23 @@ export default function StudentMyLevelPage() {
     }
   }
 
-  // ✅ تحويل الترتيب لعلامة
   const formatRank = (rank, badge) => {
     if (rank === null || rank === undefined || rank === '-') return '-'
     const crown = badge === 'crown' ? ' 👑' : badge === 'duplicate' ? ' 🔁' : ''
     return `#${rank}${crown}`
+  }
+
+  const formatTime = (dateString) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = Math.floor((now - date) / 60000)
+
+    if (diff < 1) return 'الآن'
+    if (diff < 60) return `منذ ${diff} دقيقة`
+    if (diff < 1440) return `منذ ${Math.floor(diff / 60)} ساعة`
+    if (diff < 43200) return `منذ ${Math.floor(diff / 1440)} يوم`
+    return date.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   if (loading) {
@@ -84,7 +97,7 @@ export default function StudentMyLevelPage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
 
-      {/* ═══ Header متناسق ═══ */}
+      {/* ═══ Header ═══ */}
       <div className="bg-yellow-400 text-black shadow-lg sticky top-0 z-30 safe-top">
         <div className="max-w-3xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
           <div className="flex items-center justify-between gap-2">
@@ -105,7 +118,6 @@ export default function StudentMyLevelPage() {
         </div>
       </div>
 
-      {/* ═══ المحتوى ═══ */}
       <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
 
         {error && (
@@ -170,6 +182,88 @@ export default function StudentMyLevelPage() {
           </div>
         </div>
 
+        {/* ═══ سجل تعديلات النقاط ═══ */}
+        <div className="bg-white rounded-2xl shadow-md p-4 md:p-6 mb-4 md:mb-6 border border-gray-100 fade-in-up">
+          <h2 className="text-base md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
+            🪙 سجل النقاط
+            <span className="text-xs md:text-sm font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+              {pointsHistory.length}
+            </span>
+          </h2>
+
+          {pointsHistory.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-5xl md:text-6xl mb-4">📭</div>
+              <p className="text-base md:text-lg font-bold">لا يوجد تعديلات على نقاطك</p>
+              <p className="text-xs md:text-sm font-bold mt-2">
+                كل تعديل يدوي من المدرس هيظهر هنا
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 md:space-y-3">
+              {pointsHistory.map((entry, index) => {
+                const isAdd = (entry.points_change || 0) > 0
+                return (
+                  <div
+                    key={entry.id || index}
+                    className={`p-3 md:p-4 rounded-xl border-2 fade-in-up ${
+                      isAdd
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    {/* السطر الأول: العدد + المدرس */}
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 md:px-3 py-1 rounded-full font-extrabold text-xs md:text-sm ${
+                          isAdd
+                            ? 'bg-green-200 text-green-800'
+                            : 'bg-red-200 text-red-800'
+                        }`}>
+                          {isAdd ? `➕ ${entry.points_change}` : `➖ ${Math.abs(entry.points_change)}`}
+                        </span>
+                        <span className="text-xs md:text-sm font-bold text-gray-700">
+                          {isAdd ? 'نقطة مضافة' : 'نقطة مخصومة'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] md:text-xs text-gray-400 font-bold">
+                        {formatTime(entry.created_at)}
+                      </span>
+                    </div>
+
+                    {/* السطر التاني: الرصيد قبل/بعد */}
+                    <div className="flex items-center gap-2 md:gap-3 text-[11px] md:text-xs font-bold mb-2 flex-wrap">
+                      <span className="text-gray-500">الرصيد:</span>
+                      <span className="text-gray-700">{entry.previous_total}</span>
+                      <span className="text-gray-400">→</span>
+                      <span className={isAdd ? 'text-green-700' : 'text-red-700'}>
+                        {entry.new_total}
+                      </span>
+                    </div>
+
+                    {/* المدرس */}
+                    {entry.teacher_name && (
+                      <div className="flex items-center gap-1.5 text-[11px] md:text-xs mb-1.5">
+                        <span className="text-gray-500 font-bold">👨‍🏫</span>
+                        <span className="font-bold text-gray-700">{entry.teacher_name}</span>
+                      </div>
+                    )}
+
+                    {/* السبب */}
+                    {entry.reason && (
+                      <div className="bg-white/70 rounded-lg p-2 border border-white">
+                        <p className="text-[11px] md:text-xs font-bold text-gray-700 break-words">
+                          💬 {entry.reason}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* ═══ الأخطاء ═══ */}
         <div className="bg-white rounded-2xl shadow-md p-4 md:p-6 border border-gray-100 fade-in-up">
           <h2 className="text-base md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
@@ -219,13 +313,6 @@ export default function StudentMyLevelPage() {
                           : String(errorItem.correct_answer)}
                       </span>
                     </div>
-                    {errorItem.explanation && (
-                      <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-                        <p className="text-gray-700 text-[10px] md:text-xs font-bold">
-                          💡 {errorItem.explanation}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}

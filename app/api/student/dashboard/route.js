@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import {
   profiles, groups, groupStudents, exams, examAttempts,
-  studentAnswers, examQuestions, studentErrors, levels
+  studentAnswers, examQuestions, studentErrors, levels, pointsHistory
 } from '@/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 
@@ -78,7 +78,7 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 4) الاختبارات المكتملة (اللي سلمها الطالب)
+    // 4) الاختبارات المكتملة
     // ═══════════════════════════════════════════════
     const studentAttempts = await db
       .select()
@@ -95,13 +95,12 @@ export async function GET(request) {
     )
 
     // ═══════════════════════════════════════════════
-    // 6) الترتيب على المستوى بالكامل (Live)
+    // 6) الترتيب على المستوى
     // ═══════════════════════════════════════════════
     let levelRank = null
     let levelRankBadge = null
 
     if (studentLevelId) {
-      // ✅ كل الطلاب في نفس المستوى
       const levelStudents = await db
         .select()
         .from(profiles)
@@ -110,7 +109,6 @@ export async function GET(request) {
       const levelStudentIds = levelStudents.map(s => s.id)
 
       if (levelStudentIds.length > 0) {
-        // ✅ كل محاولات طلاب المستوى
         const levelAttempts = await db
           .select()
           .from(examAttempts)
@@ -118,7 +116,6 @@ export async function GET(request) {
 
         const submittedLevelAttempts = levelAttempts.filter(a => a.status === 'submitted')
 
-        // ✅ مجموع نقاط كل طالب
         const pointsByStudent = {}
         for (const sid of levelStudentIds) {
           pointsByStudent[sid] = 0
@@ -127,12 +124,10 @@ export async function GET(request) {
           pointsByStudent[att.student_id] = (pointsByStudent[att.student_id] || 0) + (att.total_score || 0)
         }
 
-        // ✅ ترتيب تنازلي
         const sorted = Object.entries(pointsByStudent)
           .map(([sid, pts]) => ({ student_id: sid, points: pts }))
           .sort((a, b) => b.points - a.points)
 
-        // ✅ حساب الترتيب مع مراعاة التعادل
         let currentRank = 1
         let prevPoints = null
         const myPoints = pointsByStudent[studentId] || 0
@@ -140,7 +135,7 @@ export async function GET(request) {
         for (let i = 0; i < sorted.length; i++) {
           const entry = sorted[i]
           if (prevPoints !== null && entry.points === prevPoints) {
-            // نفس النقاط → نفس الترتيب
+            // نفس الترتيب
           } else {
             currentRank = i + 1
           }
@@ -152,27 +147,24 @@ export async function GET(request) {
           }
         }
 
-        // ✅ تحديد التاج أو المكرر
         if (levelRank === 1) {
-          // ✅ كم طالب عنده نفس النقاط؟
           const samePointsCount = sorted.filter(s => s.points === myPoints).length
           if (samePointsCount === 1) {
-            levelRankBadge = 'crown'  // 👑
+            levelRankBadge = 'crown'
           } else {
-            levelRankBadge = 'duplicate'  // 🔁
+            levelRankBadge = 'duplicate'
           }
         }
       }
     }
 
     // ═══════════════════════════════════════════════
-    // 7) الترتيب على المجموعة (Live)
+    // 7) الترتيب على المجموعة
     // ═══════════════════════════════════════════════
     let groupRank = null
     let groupRankBadge = null
 
     if (groupId) {
-      // ✅ كل طلاب الجروب
       const groupStudentsList = await db
         .select()
         .from(groupStudents)
@@ -181,7 +173,6 @@ export async function GET(request) {
       const groupStudentIds = groupStudentsList.map(gs => gs.student_id)
 
       if (groupStudentIds.length > 0) {
-        // ✅ كل محاولات طلاب الجروب
         const groupAttempts = await db
           .select()
           .from(examAttempts)
@@ -189,7 +180,6 @@ export async function GET(request) {
 
         const submittedGroupAttempts = groupAttempts.filter(a => a.status === 'submitted')
 
-        // ✅ مجموع نقاط كل طالب
         const pointsByStudent = {}
         for (const sid of groupStudentIds) {
           pointsByStudent[sid] = 0
@@ -198,12 +188,10 @@ export async function GET(request) {
           pointsByStudent[att.student_id] = (pointsByStudent[att.student_id] || 0) + (att.total_score || 0)
         }
 
-        // ✅ ترتيب تنازلي
         const sorted = Object.entries(pointsByStudent)
           .map(([sid, pts]) => ({ student_id: sid, points: pts }))
           .sort((a, b) => b.points - a.points)
 
-        // ✅ حساب الترتيب مع مراعاة التعادل
         let currentRank = 1
         let prevPoints = null
         const myPoints = pointsByStudent[studentId] || 0
@@ -223,7 +211,6 @@ export async function GET(request) {
           }
         }
 
-        // ✅ التاج أو المكرر
         if (groupRank === 1) {
           const samePointsCount = sorted.filter(s => s.points === myPoints).length
           if (samePointsCount === 1) {
@@ -236,7 +223,7 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 8) الأخطاء (باسم الاختبار + السؤال + إجابته + الصح)
+    // 8) الأخطاء
     // ═══════════════════════════════════════════════
     const studentErrorsList = await db
       .select()
@@ -244,10 +231,8 @@ export async function GET(request) {
       .where(eq(studentErrors.student_id, studentId))
       .orderBy(desc(studentErrors.created_at))
 
-    // ✅ نجيب تفاصيل كل خطأ
     const errorsWithDetails = []
     for (const err of studentErrorsList) {
-      // ✅ السؤال
       const qData = await db
         .select()
         .from(examQuestions)
@@ -255,7 +240,6 @@ export async function GET(request) {
 
       const question = qData[0] || null
 
-      // ✅ الاختبار + اسمه
       let examTitle = 'اختبار غير معروف'
       if (question) {
         const examData = await db
@@ -267,7 +251,6 @@ export async function GET(request) {
         }
       }
 
-      // ✅ فك JSON للخيارات والإجابات
       const deepParse = (val) => {
         if (!val) return null
         let parsed = val
@@ -283,7 +266,6 @@ export async function GET(request) {
       const correctAnswersRaw = deepParse(question?.correct_answers) || []
       const studentAnswerRaw = deepParse(err.student_answer) || []
 
-      // ✅ تحويل للعرض
       const correctTexts = (Array.isArray(correctAnswersRaw) ? correctAnswersRaw : [correctAnswersRaw]).map(ca => {
         const asNum = Number(ca)
         if (!isNaN(asNum) && Number.isInteger(asNum) && options[asNum] !== undefined) {
@@ -312,7 +294,35 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 9) الرد النهائي
+    // 9) سجل تعديلات النقاط (يدوية) ✨ جديد
+    // ═══════════════════════════════════════════════
+    let pointsHistoryList = []
+    try {
+      const historyRaw = await db
+        .select({
+          id: pointsHistory.id,
+          teacher_id: pointsHistory.teacher_id,
+          points_change: pointsHistory.points_change,
+          reason: pointsHistory.reason,
+          previous_total: pointsHistory.previous_total,
+          new_total: pointsHistory.new_total,
+          created_at: pointsHistory.created_at,
+          teacher_name: profiles.full_name,
+        })
+        .from(pointsHistory)
+        .leftJoin(profiles, eq(pointsHistory.teacher_id, profiles.id))
+        .where(eq(pointsHistory.student_id, studentId))
+        .orderBy(desc(pointsHistory.created_at))
+        .limit(50)
+
+      pointsHistoryList = historyRaw || []
+    } catch (e) {
+      console.error('⚠️ خطأ في جلب سجل النقاط:', e.message)
+      pointsHistoryList = []
+    }
+
+    // ═══════════════════════════════════════════════
+    // 10) الرد النهائي
     // ═══════════════════════════════════════════════
     return NextResponse.json({
       success: true,
@@ -338,6 +348,7 @@ export async function GET(request) {
         group_rank_badge: groupRankBadge,
       },
       errors: errorsWithDetails,
+      pointsHistory: pointsHistoryList, // ✨ جديد
     })
 
   } catch (error) {
