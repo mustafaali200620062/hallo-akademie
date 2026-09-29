@@ -33,7 +33,6 @@ export default function StudentPage() {
         router.push('/login')
         return
       }
-
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
 
@@ -41,10 +40,8 @@ export default function StudentPage() {
         router.push('/unauthorized')
         return
       }
-
       setProfile(parsedUser)
       await fetchDashboard(parsedUser.id)
-
     } catch (error) {
       console.error('Error:', error)
       router.push('/login')
@@ -95,9 +92,9 @@ export default function StudentPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="relative w-32 h-32 mx-auto">
-            <img 
-              src="/logo.png" 
-              alt="Loading" 
+            <img
+              src="/logo.png"
+              alt="Loading"
               className="w-32 h-32 object-contain animate-pulse"
             />
             <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-yellow-500 border-r-black animate-spin"></div>
@@ -117,118 +114,121 @@ export default function StudentPage() {
       <div className="absolute inset-0 w-full h-full bg-custom"></div>
       <div className="absolute inset-0 w-full h-full bg-black/30 blur-overlay"></div>
 
-      <div className="flex-1 p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
-        {activeTab === 'dashboard' && (
-          <>
-            {/* ═══ بطاقات الإحصائيات ═══ */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 card-mobile">
+      <div className="flex-1 p-4 md:p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
 
-              {/* ✅ 1. Group */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 font-bold uppercase tracking-wider">Group</p>
-                    <p className="text-xl font-extrabold text-gray-900 mt-1">
+        {activeTab === 'dashboard' && (
+          <div className="fade-in-up">
+            {/* ═══ بطاقات الإحصائيات ═══ */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+
+              {/* 1. Group */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold uppercase tracking-wider">Group</p>
+                    <p className="text-base md:text-xl font-extrabold text-gray-900 mt-1 truncate">
                       {group.name || 'بدون جروب'}
                     </p>
                   </div>
-                  <div className="text-4xl">📚</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">📚</div>
                 </div>
               </div>
 
-              {/* ✅ 2. الاختبارات المتاحة */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 font-bold">الاختبارات المتاحة</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.available_exams || 0}</p>
+              {/* 2. الاختبارات المتاحة */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الاختبارات المتاحة</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.available_exams || 0}</p>
                   </div>
-                  <div className="text-4xl">📝</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">📝</div>
                 </div>
               </div>
 
-              {/* ✅ 3. الاختبارات المكتملة */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 font-bold">الاختبارات المكتملة</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.completed_exams || 0}</p>
+              {/* 3. الاختبارات المكتملة */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الاختبارات المكتملة</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.completed_exams || 0}</p>
                   </div>
-                  <div className="text-4xl">✅</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">✅</div>
                 </div>
               </div>
 
-              {/* ✅ 4. الترتيب على المستوى */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 font-bold">الترتيب / النقاط</p>
-                    <p className="text-2xl font-extrabold text-gray-900 mt-1">
-                      {formatRankBadge(stats.level_rank, stats.level_rank_badge)} / {stats.total_points || 0}
+              {/* 4. الترتيب / النقاط */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الترتيب / النقاط</p>
+                    <p className="text-base md:text-2xl font-extrabold text-gray-900 mt-1">
+                      {formatRankBadge(stats.level_rank, stats.level_rank_badge)}
+                      <span className="text-gray-400 font-bold mx-1">/</span>
+                      {stats.total_points || 0}
                     </p>
                   </div>
-                  <div className="text-4xl">🏆</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">🏆</div>
                 </div>
               </div>
             </div>
 
             {/* ═══ Rank + الأخطاء ═══ */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 card-mobile">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
 
-              {/* ✅ صندوق Rank */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
-                <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
+              {/* Rank */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
+                <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📊 Rank
                 </h2>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                    <span className="text-gray-600 font-bold">Level</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-extrabold ${levelInfo.color}`}>
+                  <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
+                    <span className="text-gray-600 font-bold text-sm md:text-base">Level</span>
+                    <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-extrabold ${levelInfo.color}`}>
                       {levelInfo.label}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                    <span className="text-gray-600 font-bold">النقاط</span>
-                    <span className="font-extrabold text-lg text-gray-900">{stats.total_points || 0}</span>
+                  <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
+                    <span className="text-gray-600 font-bold text-sm md:text-base">النقاط</span>
+                    <span className="font-extrabold text-base md:text-lg text-gray-900">{stats.total_points || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                    <span className="text-gray-600 font-bold">Rank (Group)</span>
-                    <span className="font-extrabold text-lg text-gray-900">
+                  <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
+                    <span className="text-gray-600 font-bold text-sm md:text-base">Rank (Group)</span>
+                    <span className="font-extrabold text-base md:text-lg text-gray-900">
                       {formatRankBadge(stats.group_rank, stats.group_rank_badge)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* ✅ صندوق الأخطاء */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
-                <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
+              {/* الأخطاء */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
+                <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   ❌ أخطائي ({errors.length})
                 </h2>
 
                 {errors.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-4xl mb-2">📖</div>
-                    <p className="font-bold">لا توجد أخطاء مسجلة حتى الآن</p>
-                    <p className="text-sm font-bold mt-2">ستظهر الأخطاء بعد حل الاختبارات</p>
+                    <p className="font-bold text-sm md:text-base">لا توجد أخطاء مسجلة حتى الآن</p>
+                    <p className="text-xs md:text-sm font-bold mt-2">ستظهر الأخطاء بعد حل الاختبارات</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[500px] md:max-h-96 overflow-y-auto pr-1 no-scrollbar">
                     {errors.map((err, idx) => (
                       <div key={err.id || idx} className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                        <div className="flex justify-between items-start mb-2 gap-2 flex-wrap">
+                          <span className="text-[10px] md:text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
                             📝 {err.exam_title}
                           </span>
                           <span className="text-[10px] text-gray-400 font-bold">
                             {formatDate(err.created_at)}
                           </span>
                         </div>
-                        <p className="text-sm font-bold text-gray-800 mb-2">
+                        <p className="text-xs md:text-sm font-bold text-gray-800 mb-2">
                           {err.question_text}
                         </p>
-                        <div className="space-y-1 text-xs">
-                          <div className="flex gap-2">
+                        <div className="space-y-1 text-[11px] md:text-xs">
+                          <div className="flex gap-2 flex-wrap">
                             <span className="text-gray-500 font-bold">إجابتك:</span>
                             <span className="text-red-700 font-bold">
                               {Array.isArray(err.student_answer)
@@ -236,7 +236,7 @@ export default function StudentPage() {
                                 : String(err.student_answer)}
                             </span>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <span className="text-gray-500 font-bold">الصح:</span>
                             <span className="text-green-700 font-bold">
                               {Array.isArray(err.correct_answer)
@@ -251,14 +251,14 @@ export default function StudentPage() {
                 )}
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {activeTab === 'lessons' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📚</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">دروسي</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">دروسي</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/student/lessons" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى الدروس ←
             </Link>
@@ -266,10 +266,10 @@ export default function StudentPage() {
         )}
 
         {activeTab === 'exams' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📝</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">الاختبارات</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">الاختبارات</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/student/exams" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى الاختبارات ←
             </Link>
@@ -277,10 +277,10 @@ export default function StudentPage() {
         )}
 
         {activeTab === 'forum' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">💬</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">المنتدى</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">المنتدى</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/student/forum" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى المنتدى ←
             </Link>
@@ -288,10 +288,10 @@ export default function StudentPage() {
         )}
 
         {activeTab === 'my-level' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">Rank</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">Rank</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/student/my-level" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى Rank ←
             </Link>
@@ -299,8 +299,10 @@ export default function StudentPage() {
         )}
       </div>
 
-      {/* القائمة الجانبية */}
+      {/* القائمة الجانبية / Bottom Nav */}
       <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
+
+        {/* Header (Desktop only) */}
         <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-lg shadow-green-500/25">
@@ -313,6 +315,7 @@ export default function StudentPage() {
           </div>
         </div>
 
+        {/* User (Desktop only) */}
         <div className="p-6 border-b border-white/10 sidebar-user">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-2xl text-white font-extrabold shadow-lg shadow-green-500/25">
@@ -330,12 +333,13 @@ export default function StudentPage() {
           </div>
         </div>
 
+        {/* Nav (mobile + desktop) */}
         <nav className="p-4 space-y-1.5">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'dashboard' 
-                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20' 
+              activeTab === 'dashboard'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -344,8 +348,8 @@ export default function StudentPage() {
           <button
             onClick={() => setActiveTab('lessons')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'lessons' 
-                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20' 
+              activeTab === 'lessons'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -354,8 +358,8 @@ export default function StudentPage() {
           <button
             onClick={() => setActiveTab('exams')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'exams' 
-                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20' 
+              activeTab === 'exams'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -364,8 +368,8 @@ export default function StudentPage() {
           <button
             onClick={() => setActiveTab('forum')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'forum' 
-                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20' 
+              activeTab === 'forum'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -374,8 +378,8 @@ export default function StudentPage() {
           <button
             onClick={() => setActiveTab('my-level')}
             className={`w-full text-right px-4 py-3 text-base font-extrabold rounded-xl transition-all duration-300 flex items-center gap-4 ${
-              activeTab === 'my-level' 
-                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20' 
+              activeTab === 'my-level'
+                ? 'bg-green-400/20 text-green-400 shadow-lg shadow-green-500/10 border border-green-400/20'
                 : 'text-white/60 hover:bg-white/10 hover:text-white hover:scale-[1.02]'
             }`}
           >
@@ -383,7 +387,8 @@ export default function StudentPage() {
           </button>
         </nav>
 
-        <div className="absolute bottom-0 w-72 p-6 border-t border-white/10 sidebar-footer">
+        {/* Footer / Logout */}
+        <div className="p-4 md:p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {
               localStorage.removeItem('user')

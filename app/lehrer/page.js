@@ -59,10 +59,8 @@ export default function LehrerPage() {
     }
   }
 
-  // ✅ دالة تحويل الوقت لصيغة "منذ..."
   const timeAgo = (dateStr) => {
     if (!dateStr) return ''
-
     const now = new Date()
     const past = new Date(dateStr)
     const seconds = Math.floor((now - past) / 1000)
@@ -101,73 +99,72 @@ export default function LehrerPage() {
       <div className="absolute inset-0 w-full h-full bg-custom"></div>
       <div className="absolute inset-0 w-full h-full bg-black/30 blur-overlay"></div>
 
-      <div className="flex-1 p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
+      <div className="flex-1 p-4 md:p-6 overflow-y-auto order-first relative z-10 main-content-mobile">
 
-        {/* ═══════════════ DASHBOARD ═══════════════ */}
         {activeTab === 'dashboard' && (
-          <>
-            {/* ✅ الإحصائيات (4 بس) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 card-mobile">
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 font-bold">المجموعات</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.groups}</p>
+          <div className="fade-in-up">
+            {/* ═══ الإحصائيات ═══ */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">المجموعات</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.groups}</p>
                   </div>
-                  <div className="text-2xl">📚</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">📚</div>
                 </div>
               </div>
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 font-bold">الطلاب</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.students}</p>
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الطلاب</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.students}</p>
                   </div>
-                  <div className="text-2xl">👨‍🎓</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">👨‍🎓</div>
                 </div>
               </div>
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 font-bold">الاختبارات</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.exams}</p>
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الاختبارات</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.exams}</p>
                   </div>
-                  <div className="text-2xl">📝</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">📝</div>
                 </div>
               </div>
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 font-bold">الشرح</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.lessons}</p>
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/40 shadow-lg card-touch">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-sm text-gray-600 font-bold leading-tight">الشرح</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{stats.lessons}</p>
                   </div>
-                  <div className="text-2xl">📖</div>
+                  <div className="text-2xl md:text-4xl self-end md:self-auto">📖</div>
                 </div>
               </div>
             </div>
 
-            {/* ✅ آخر النشاطات + أداء الطلاب */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 card-mobile mb-6">
+            {/* ═══ آخر النشاطات + أداء الطلاب ═══ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
 
               {/* آخر النشاطات */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
-                <h2 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-800">
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
+                <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📋 آخر النشاطات
                 </h2>
                 <div className="space-y-3">
                   {recentActivity.length === 0 ? (
-                    <p className="text-center text-gray-500 font-bold py-4">
+                    <p className="text-center text-gray-500 font-bold py-4 text-sm md:text-base">
                       مفيش نشاطات بعد
                     </p>
                   ) : (
                     recentActivity.map((activity, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-white/50 rounded-xl">
-                        <span className="text-2xl">{activity.icon}</span>
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-white/60 rounded-xl">
+                        <span className="text-xl md:text-2xl flex-shrink-0">{activity.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-700 truncate">
+                          <p className="text-xs md:text-sm font-bold text-gray-700 truncate">
                             {activity.text}
                           </p>
-                          <p className="text-xs text-gray-500 font-bold">
+                          <p className="text-[10px] md:text-xs text-gray-500 font-bold">
                             {timeAgo(activity.time)}
                           </p>
                         </div>
@@ -177,31 +174,31 @@ export default function LehrerPage() {
                 </div>
               </div>
 
-              {/* أداء الطلاب لكل مجموعة */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
-                <h2 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-800">
+              {/* أداء الطلاب */}
+              <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
+                <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                   📊 أداء الطلاب
                 </h2>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[500px] md:max-h-96 overflow-y-auto no-scrollbar">
                   {studentPerformance.length === 0 ? (
-                    <p className="text-center text-gray-500 font-bold py-4">
+                    <p className="text-center text-gray-500 font-bold py-4 text-sm md:text-base">
                       مفيش مجموعات بعد
                     </p>
                   ) : (
                     studentPerformance.map((perf, idx) => (
-                      <div key={idx} className="p-3 bg-white/50 rounded-xl">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-extrabold text-gray-800">
+                      <div key={idx} className="p-3 bg-white/60 rounded-xl">
+                        <div className="flex justify-between items-center mb-2 gap-2">
+                          <span className="text-xs md:text-sm font-extrabold text-gray-800 truncate">
                             📚 {perf.group_name}
                           </span>
-                          <span className="text-xs text-gray-500 font-bold">
+                          <span className="text-[10px] md:text-xs text-gray-500 font-bold flex-shrink-0">
                             {perf.students_count} طالب
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <div className="flex-1 bg-white rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500 font-bold">متوسط الدرجات</div>
-                            <div className={`text-lg font-extrabold ${
+                          <div className="flex-1 bg-white rounded-lg p-2 text-center">
+                            <div className="text-[10px] text-gray-500 font-bold leading-tight">متوسط الدرجات</div>
+                            <div className={`text-base md:text-lg font-extrabold mt-0.5 ${
                               perf.avg_score >= 70 ? 'text-green-600' :
                               perf.avg_score >= 50 ? 'text-yellow-600' :
                               'text-red-600'
@@ -209,9 +206,9 @@ export default function LehrerPage() {
                               {perf.avg_score}%
                             </div>
                           </div>
-                          <div className="flex-1 bg-white rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500 font-bold">نسبة الإكمال</div>
-                            <div className={`text-lg font-extrabold ${
+                          <div className="flex-1 bg-white rounded-lg p-2 text-center">
+                            <div className="text-[10px] text-gray-500 font-bold leading-tight">نسبة الإكمال</div>
+                            <div className={`text-base md:text-lg font-extrabold mt-0.5 ${
                               perf.completion_rate >= 70 ? 'text-green-600' :
                               perf.completion_rate >= 50 ? 'text-yellow-600' :
                               'text-red-600'
@@ -227,33 +224,33 @@ export default function LehrerPage() {
               </div>
             </div>
 
-            {/* ✅ الطلاب المتأخرين */}
-            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-lg">
-              <h2 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-800">
+            {/* ═══ الطلاب المتأخرين ═══ */}
+            <div className="bg-white/75 backdrop-blur-md rounded-2xl p-5 md:p-6 border border-white/40 shadow-lg">
+              <h2 className="text-lg md:text-xl font-extrabold mb-4 flex items-center gap-2 text-gray-800">
                 ⚠️ الطلاب المتأخرين ({strugglingStudents.length})
               </h2>
 
               {strugglingStudents.length === 0 ? (
-                <p className="text-center text-green-600 font-bold py-4">
+                <p className="text-center text-green-600 font-bold py-4 text-sm md:text-base">
                   ✅ كل الطلاب في المستوى المطلوب!
                 </p>
               ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-[500px] md:max-h-96 overflow-y-auto no-scrollbar">
                   {strugglingStudents.map((s, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl gap-2">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center font-extrabold flex-shrink-0">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-500 text-white flex items-center justify-center font-extrabold flex-shrink-0 text-sm md:text-base">
                           {s.name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-gray-900 truncate">{s.name}</p>
-                          <p className="text-xs text-gray-500 font-bold">
+                          <p className="font-bold text-gray-900 truncate text-xs md:text-sm">{s.name}</p>
+                          <p className="text-[10px] md:text-xs text-gray-500 font-bold truncate">
                             📚 {s.group_name}
                           </p>
                         </div>
                       </div>
-                      <div className="text-left flex-shrink-0">
-                        <span className="px-3 py-1 bg-red-200 text-red-800 rounded-full text-xs font-extrabold">
+                      <div className="flex-shrink-0">
+                        <span className="px-2 md:px-3 py-1 bg-red-200 text-red-800 rounded-full text-[10px] md:text-xs font-extrabold whitespace-nowrap">
                           {s.reason}
                         </span>
                       </div>
@@ -262,16 +259,15 @@ export default function LehrerPage() {
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
 
-        {/* ═══════════════ باقي التابات (زي ما هي) ═══════════════ */}
-
+        {/* باقي التابات */}
         {activeTab === 'groups' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📚</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">مجموعاتي</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">مجموعاتي</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/lehrer/groups" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى المجموعات ←
             </Link>
@@ -279,10 +275,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'exams' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📝</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">الاختبارات</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">الاختبارات</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/lehrer/exams" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى الاختبارات ←
             </Link>
@@ -290,10 +286,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'monitor' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">👀</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">متابعة الاختبارات</h3>
-            <p className="font-bold text-gray-500">شاهد الطلاب اللي بيحلوا الاختبارات حالياً</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">متابعة الاختبارات</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">شاهد الطلاب اللي بيحلوا الاختبارات حالياً</p>
             <Link href="/lehrer/exams/monitor" className="mt-4 inline-block bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors">
               الذهاب إلى المتابعة ←
             </Link>
@@ -301,10 +297,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'reentry' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📩</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">طلبات استكمال الاختبارات</h3>
-            <p className="font-bold text-gray-500">راجع طلبات الطلاب من هنا</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">طلبات استكمال الاختبارات</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">راجع طلبات الطلاب من هنا</p>
             <Link
               href="/lehrer/reentry-requests"
               className="mt-4 inline-block bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors"
@@ -315,10 +311,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'results' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">النتائج</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">النتائج</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/lehrer/results" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى النتائج ←
             </Link>
@@ -326,10 +322,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'lessons' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">📖</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">الشرح</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">الشرح</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/lehrer/lessons" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى الشرح ←
             </Link>
@@ -337,10 +333,10 @@ export default function LehrerPage() {
         )}
 
         {activeTab === 'forum' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 text-center border border-white/30 shadow-lg">
+          <div className="bg-white/75 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center border border-white/40 shadow-lg fade-in-up">
             <div className="text-4xl mb-4">💬</div>
-            <h3 className="text-xl font-extrabold mb-2 text-gray-900">المنتدى</h3>
-            <p className="font-bold text-gray-500">جاري التطوير...</p>
+            <h3 className="text-lg md:text-xl font-extrabold mb-2 text-gray-900">المنتدى</h3>
+            <p className="font-bold text-gray-500 text-sm md:text-base">جاري التطوير...</p>
             <Link href="/lehrer/forum" className="mt-4 inline-block text-blue-600 hover:text-blue-800 font-extrabold transition-colors">
               الذهاب إلى المنتدى ←
             </Link>
@@ -348,8 +344,9 @@ export default function LehrerPage() {
         )}
       </div>
 
-      {/* ═══════════════ السايدبار ═══════════════ */}
+      {/* ═══ Sidebar / Bottom Nav ═══ */}
       <div className="w-72 bg-gradient-to-t from-yellow-400/20 via-red-600/10 to-black/95 backdrop-blur-xl border-l border-white/10 text-white min-h-screen flex-shrink-0 shadow-2xl order-last overflow-y-auto relative z-10 sidebar-mobile">
+
         <div className="p-6 border-b border-white/10 sidebar-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-lg shadow-red-500/25">
@@ -458,7 +455,7 @@ export default function LehrerPage() {
           </button>
         </nav>
 
-        <div className="absolute bottom-0 w-72 p-6 border-t border-white/10 sidebar-footer">
+        <div className="p-4 md:p-6 border-t border-white/10 sidebar-footer">
           <button
             onClick={() => {
               localStorage.removeItem('user')

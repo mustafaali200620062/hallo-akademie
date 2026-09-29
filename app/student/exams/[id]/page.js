@@ -18,9 +18,9 @@ export default function ExamSolvePage({ params }) {
   const [requestingReentry, setRequestingReentry] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [savingStatus, setSavingStatus] = useState(null) // 'saving' | 'saved' | 'error'
+  const [savingStatus, setSavingStatus] = useState(null)
   const submittedRef = useRef(false)
-  const saveTimers = useRef({}) // ✅ timers لكل سؤال
+  const saveTimers = useRef({})
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -136,7 +136,6 @@ export default function ExamSolvePage({ params }) {
     }
   }
 
-  // ✅ حفظ إجابة واحدة في الداتابيز (live)
   const saveAnswerToServer = useCallback(async (questionId, answerValue) => {
     if (!attempt?.id) return
 
@@ -162,7 +161,6 @@ export default function ExamSolvePage({ params }) {
     }
   }, [attempt])
 
-  // ✅ debounced save (1.5 ثانية بعد آخر تغيير)
   const scheduleSave = useCallback((questionId, answerValue) => {
     if (saveTimers.current[questionId]) {
       clearTimeout(saveTimers.current[questionId])
@@ -185,10 +183,7 @@ export default function ExamSolvePage({ params }) {
       newAnswerValue = value
     }
 
-    // ✅ تحديث الـ state فوراً
     setAnswers(prev => ({ ...prev, [questionId]: newAnswerValue }))
-
-    // ✅ جدولة الحفظ (debounced)
     scheduleSave(questionId, newAnswerValue)
   }
 
@@ -310,7 +305,13 @@ export default function ExamSolvePage({ params }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-2xl font-bold">Laden...</div>
+        <div className="text-center">
+          <div className="relative w-24 h-24 mx-auto">
+            <img src="/logo.png" alt="Loading" className="w-24 h-24 object-contain animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-500 border-r-black animate-spin"></div>
+          </div>
+          <p className="mt-6 text-lg font-black text-gray-700 animate-pulse">Laden...</p>
+        </div>
       </div>
     )
   }
@@ -440,22 +441,33 @@ export default function ExamSolvePage({ params }) {
       })
   }
 
+  // ✅ عدد الأسئلة المُجابة
+  const answeredCount = questions.filter(q => {
+    const a = answers[q.id]
+    if (a === undefined || a === null) return false
+    if (Array.isArray(a)) return a.length > 0
+    if (typeof a === 'object') return Object.keys(a).length > 0
+    return String(a).trim() !== ''
+  }).length
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors`}>
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-2 md:py-3">
-          <div className="flex justify-between items-center mb-2">
+
+      {/* ═══ Sticky Header ═══ */}
+      <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors safe-top`}>
+        <div className="max-w-4xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
+          <div className="flex justify-between items-center mb-2 gap-2">
             <div className="flex-1 min-w-0">
               <h1 className="text-sm md:text-lg font-bold truncate" dir="ltr">{exam.title}</h1>
-              <p className="text-[10px] md:text-xs opacity-80 font-bold" dir="ltr">
+              <p className="text-[10px] md:text-xs opacity-90 font-bold" dir="ltr">
                 {questions.length} Fragen • {exam.total_points} Punkte
               </p>
             </div>
-            <div className="text-center ml-2">
+            <div className="text-center flex-shrink-0">
               <div className={`text-xl md:text-3xl font-extrabold ${isTimeWarning ? 'animate-pulse' : ''}`} dir="ltr">
-                ⏱️ {timeLeft} Min
+                ⏱️ {timeLeft}
               </div>
-              <div className="text-[10px] md:text-xs font-bold opacity-80">verbleibend</div>
+              <div className="text-[10px] md:text-xs font-bold opacity-80">Min übrig</div>
             </div>
           </div>
           <div className="w-full bg-white/20 rounded-full h-1.5 md:h-2 overflow-hidden">
@@ -464,12 +476,17 @@ export default function ExamSolvePage({ params }) {
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
+          {/* ✅ عداد الإجابات */}
+          <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-bold opacity-90">
+            <span dir="ltr">✅ {answeredCount} / {questions.length} beantwortet</span>
+            <span dir="ltr">{Math.round(progressPercent)}%</span>
+          </div>
         </div>
       </div>
 
-      {/* ✅ مؤشر حفظ الإجابة */}
+      {/* ═══ Saving Indicator ═══ */}
       {savingStatus && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all ${
+        <div className={`fixed top-24 md:top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-lg text-xs md:text-sm font-bold transition-all fade-in-up ${
           savingStatus === 'saving' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
           savingStatus === 'saved' ? 'bg-green-100 text-green-800 border border-green-300' :
           'bg-red-100 text-red-800 border border-red-300'
@@ -479,6 +496,7 @@ export default function ExamSolvePage({ params }) {
         </div>
       )}
 
+      {/* ═══ Warning ═══ */}
       {isTimeWarning && (
         <div className="bg-red-100 border-b-2 border-red-400 py-2 px-3 md:px-4 text-center">
           <p className="text-red-700 font-extrabold text-xs md:text-sm" dir="ltr">
@@ -487,7 +505,8 @@ export default function ExamSolvePage({ params }) {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8">
+      {/* ═══ Questions ═══ */}
+      <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8 pb-32 md:pb-8">
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <div className="space-y-4 md:space-y-6">
             {questions.map((question, index) => {
@@ -510,34 +529,39 @@ export default function ExamSolvePage({ params }) {
                 ((question.question_type === 'image' || question.question_type === 'audio') && hasTextOptions)
 
               return (
-                <div key={question.id} className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
-                  <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-extrabold shadow-md text-sm md:text-base">
+                <div key={question.id} className="bg-white rounded-2xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 fade-in-up">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200 gap-2">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-extrabold shadow-md text-sm md:text-base flex-shrink-0">
                         {index + 1}
                       </div>
-                      <div className="text-sm md:text-base font-bold text-gray-800" dir="ltr">
+                      <div className="text-xs md:text-base font-bold text-gray-800 truncate" dir="ltr">
                         {question.question_type === 'multiple_choice' ? 'Multiple Choice' :
                          question.question_type === 'matching' ? 'Zuordnung' :
                          question.question_type === 'image' ? 'Bild' :
                          question.question_type === 'audio' ? 'Hörverstehen' : 'Text'}
                       </div>
                     </div>
-                    <span className="px-2 md:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs md:text-sm font-extrabold whitespace-nowrap" dir="ltr">
-                      {question.points} {question.points === 1 ? 'Punkt' : 'Punkte'}
+                    <span className="px-2 md:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs md:text-sm font-extrabold whitespace-nowrap flex-shrink-0" dir="ltr">
+                      {question.points} {question.points === 1 ? 'P' : 'P'}
                     </span>
                   </div>
 
-                  <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">{question.question_text}</p>
+                  {/* Text */}
+                  <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">
+                    {question.question_text}
+                  </p>
 
+                  {/* Image */}
                   {question.question_type === 'image' && (
-                    <div className="mb-5">
+                    <div className="mb-4 md:mb-5">
                       {question.media_url ? (
-                        <div className="flex justify-center bg-gray-50 rounded-xl p-3 md:p-4">
+                        <div className="flex justify-center bg-gray-50 rounded-xl p-2 md:p-4">
                           <img
                             src={question.media_url}
                             alt="Frage"
-                            className="max-w-full max-h-80 md:max-h-[500px] rounded-xl shadow-md object-contain"
+                            className="max-w-full max-h-64 md:max-h-[500px] rounded-xl shadow-md object-contain"
                           />
                         </div>
                       ) : (
@@ -550,10 +574,11 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
+                  {/* Audio */}
                   {question.question_type === 'audio' && (
-                    <div className="mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
+                    <div className="mb-4 md:mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
-                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg md:text-xl">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg md:text-xl">
                           🎵
                         </div>
                         <span className="font-bold text-blue-800 text-sm md:text-base" dir="ltr">
@@ -575,6 +600,7 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
+                  {/* Options */}
                   {showOptions && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
@@ -594,7 +620,7 @@ export default function ExamSolvePage({ params }) {
                         return (
                           <label
                             key={i}
-                            className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            className={`flex items-center gap-3 p-3.5 md:p-4 border-2 rounded-xl cursor-pointer transition-all active:scale-[0.98] ${
                               isChecked
                                 ? 'bg-green-50 border-green-400 shadow-md'
                                 : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
@@ -605,7 +631,7 @@ export default function ExamSolvePage({ params }) {
                               name={`question-${question.id}`}
                               checked={isChecked}
                               onChange={() => handleAnswer(question.id, option, isMultiple)}
-                              className="w-4 h-4 md:w-5 md:h-5 text-green-600 focus:ring-green-500 flex-shrink-0"
+                              className="w-5 h-5 text-green-600 focus:ring-green-500 flex-shrink-0"
                             />
                             <span className={`font-bold text-sm md:text-base ${isChecked ? 'text-green-800' : 'text-gray-700'}`} dir="ltr">
                               {option}
@@ -616,24 +642,26 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
+                  {/* Text input */}
                   {question.question_type === 'text' && (
                     <textarea
                       value={answers[question.id] || ''}
                       onChange={(e) => handleAnswer(question.id, e.target.value)}
-                      className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-gray-900 font-medium text-sm md:text-base"
+                      className="w-full px-3 md:px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-gray-900 font-medium text-sm md:text-base"
                       rows="3"
                       placeholder="Schreiben Sie Ihre Antwort hier..."
                       dir="ltr"
                     />
                   )}
 
+                  {/* Matching */}
                   {question.question_type === 'matching' && (
                     <div className="space-y-2 md:space-y-3">
                       {options.map((pair, i) => {
                         if (typeof pair !== 'object') return null
                         return (
                           <div key={i} className="grid grid-cols-2 gap-2 md:gap-3">
-                            <div className="p-2 md:p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center flex items-center justify-center">
+                            <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-center flex items-center justify-center">
                               <span className="font-bold text-blue-800 text-xs md:text-sm" dir="ltr">{pair.left}</span>
                             </div>
                             <input
@@ -645,7 +673,7 @@ export default function ExamSolvePage({ params }) {
                                 setAnswers(prev => ({ ...prev, [question.id]: newVal }))
                                 scheduleSave(question.id, newVal)
                               }}
-                              className="p-2 md:p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
+                              className="p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 text-center font-bold text-xs md:text-sm"
                               placeholder="Antwort..."
                               dir="ltr"
                             />
@@ -659,20 +687,39 @@ export default function ExamSolvePage({ params }) {
             })}
           </div>
 
-          <div className="mt-6 md:mt-8 mb-6 md:mb-8">
+          {/* ═══ Submit Button (Desktop) ═══ */}
+          <div className="mt-6 md:mt-8 mb-6 md:mb-8 hidden md:block">
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 md:py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-base md:text-xl font-extrabold rounded-xl md:rounded-2xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+              className="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xl font-extrabold rounded-2xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
             >
               {submitting ? '⏳ Wird abgegeben...' : '✅ Prüfung abgeben'}
             </button>
-            <p className="text-center text-gray-500 text-[10px] md:text-xs font-bold mt-2 md:mt-3" dir="ltr">
+            <p className="text-center text-gray-500 text-xs font-bold mt-3" dir="ltr">
               ⚠️ Nach der Abgabe können Sie nicht zurückkehren
             </p>
           </div>
         </form>
       </div>
+
+      {/* ═══ Fixed Submit Button (Mobile) ═══ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-white border-t-2 border-gray-200 shadow-2xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="p-3">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSubmit}
+            className="w-full py-3.5 bg-gradient-to-r from-green-500 to-green-600 active:from-green-600 active:to-green-700 text-white text-base font-extrabold rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 btn-app"
+          >
+            {submitting ? '⏳ Wird abgegeben...' : `✅ Abgeben (${answeredCount}/${questions.length})`}
+          </button>
+        </div>
+      </div>
+
     </div>
   )
 }
