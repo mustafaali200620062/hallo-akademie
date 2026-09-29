@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import {
   profiles, groups, groupStudents, exams, examAttempts,
-  studentAnswers, examQuestions, studentErrors, levels, pointsHistory
+  studentAnswers, examQuestions, studentErrors, levels, pointsHistory,
+  studentPoints
 } from '@/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 
@@ -64,7 +65,7 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 3) الاختبارات المتاحة (اختبارات جروبه بس)
+    // 3) الاختبارات المتاحة
     // ═══════════════════════════════════════════════
     let availableExams = []
     if (groupId) {
@@ -88,14 +89,34 @@ export async function GET(request) {
     const completedAttempts = studentAttempts.filter(a => a.status === 'submitted')
 
     // ═══════════════════════════════════════════════
-    // 5) مجموع النقاط
+    // 5) مجموع النقاط (اختبارات + تعديلات يدوية)
     // ═══════════════════════════════════════════════
-    const totalPoints = completedAttempts.reduce(
+
+    // ✅ نقاط من الاختبارات
+    const examPoints = completedAttempts.reduce(
       (sum, a) => sum + (a.total_score || 0), 0
     )
 
+    // ✅ نقاط يدوية (من student_points)
+    let manualPoints = 0
+    try {
+      const spData = await db
+        .select()
+        .from(studentPoints)
+        .where(eq(studentPoints.student_id, studentId))
+
+      if (spData && spData.length > 0) {
+        manualPoints = spData[0].total_points || 0
+      }
+    } catch (e) {
+      console.error('⚠️ خطأ في جلب النقاط اليدوية:', e.message)
+    }
+
+    // ✅ الإجمالي النهائي
+    const totalPoints = examPoints + manualPoints
+
     // ═══════════════════════════════════════════════
-    // 6) الترتيب على المستوى
+    // 6) الترتيب على المستوى (Live)
     // ═══════════════════════════════════════════════
     let levelRank = null
     let levelRankBadge = null
@@ -109,6 +130,7 @@ export async function GET(request) {
       const levelStudentIds = levelStudents.map(s => s.id)
 
       if (levelStudentIds.length > 0) {
+        // ✅ نقاط من الاختبارات
         const levelAttempts = await db
           .select()
           .from(examAttempts)
@@ -116,18 +138,41 @@ export async function GET(request) {
 
         const submittedLevelAttempts = levelAttempts.filter(a => a.status === 'submitted')
 
-        const pointsByStudent = {}
+        const examPointsByStudent = {}
         for (const sid of levelStudentIds) {
-          pointsByStudent[sid] = 0
+          examPointsByStudent[sid] = 0
         }
         for (const att of submittedLevelAttempts) {
-          pointsByStudent[att.student_id] = (pointsByStudent[att.student_id] || 0) + (att.total_score || 0)
+          examPointsByStudent[att.student_id] = (examPointsByStudent[att.student_id] || 0) + (att.total_score || 0)
         }
 
+        // ✅ نقاط يدوية
+        let manualPointsByStudent = {}
+        try {
+          const manualData = await db
+            .select()
+            .from(studentPoints)
+            .where(inArray(studentPoints.student_id, levelStudentIds))
+
+          for (const mp of manualData) {
+            manualPointsByStudent[mp.student_id] = mp.total_points || 0
+          }
+        } catch (e) {
+          console.error('⚠️ خطأ في جلب النقاط اليدوية للمستوى:', e.message)
+        }
+
+        // ✅ الإجمالي لكل طالب
+        const pointsByStudent = {}
+        for (const sid of levelStudentIds) {
+          pointsByStudent[sid] = (examPointsByStudent[sid] || 0) + (manualPointsByStudent[sid] || 0)
+        }
+
+        // ✅ ترتيب تنازلي
         const sorted = Object.entries(pointsByStudent)
           .map(([sid, pts]) => ({ student_id: sid, points: pts }))
           .sort((a, b) => b.points - a.points)
 
+        // ✅ حساب الترتيب مع مراعاة التعادل
         let currentRank = 1
         let prevPoints = null
         const myPoints = pointsByStudent[studentId] || 0
@@ -159,7 +204,7 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 7) الترتيب على المجموعة
+    // 7) الترتيب على المجموعة (Live)
     // ═══════════════════════════════════════════════
     let groupRank = null
     let groupRankBadge = null
@@ -173,6 +218,7 @@ export async function GET(request) {
       const groupStudentIds = groupStudentsList.map(gs => gs.student_id)
 
       if (groupStudentIds.length > 0) {
+        // ✅ نقاط من الاختبارات
         const groupAttempts = await db
           .select()
           .from(examAttempts)
@@ -180,12 +226,33 @@ export async function GET(request) {
 
         const submittedGroupAttempts = groupAttempts.filter(a => a.status === 'submitted')
 
-        const pointsByStudent = {}
+        const examPointsByStudent = {}
         for (const sid of groupStudentIds) {
-          pointsByStudent[sid] = 0
+          examPointsByStudent[sid] = 0
         }
         for (const att of submittedGroupAttempts) {
-          pointsByStudent[att.student_id] = (pointsByStudent[att.student_id] || 0) + (att.total_score || 0)
+          examPointsByStudent[att.student_id] = (examPointsByStudent[att.student_id] || 0) + (att.total_score || 0)
+        }
+
+        // ✅ نقاط يدوية
+        let manualPointsByStudent = {}
+        try {
+          const manualData = await db
+            .select()
+            .from(studentPoints)
+            .where(inArray(studentPoints.student_id, groupStudentIds))
+
+          for (const mp of manualData) {
+            manualPointsByStudent[mp.student_id] = mp.total_points || 0
+          }
+        } catch (e) {
+          console.error('⚠️ خطأ في جلب النقاط اليدوية للمجموعة:', e.message)
+        }
+
+        // ✅ الإجمالي
+        const pointsByStudent = {}
+        for (const sid of groupStudentIds) {
+          pointsByStudent[sid] = (examPointsByStudent[sid] || 0) + (manualPointsByStudent[sid] || 0)
         }
 
         const sorted = Object.entries(pointsByStudent)
@@ -294,7 +361,7 @@ export async function GET(request) {
     }
 
     // ═══════════════════════════════════════════════
-    // 9) سجل تعديلات النقاط (يدوية) ✨ جديد
+    // 9) سجل تعديلات النقاط
     // ═══════════════════════════════════════════════
     let pointsHistoryList = []
     try {
@@ -342,13 +409,15 @@ export async function GET(request) {
         available_exams: availableExams.length,
         completed_exams: completedAttempts.length,
         total_points: totalPoints,
+        exam_points: examPoints,        // ✨ نقاط الاختبارات
+        manual_points: manualPoints,    // ✨ النقاط اليدوية
         level_rank: levelRank,
         level_rank_badge: levelRankBadge,
         group_rank: groupRank,
         group_rank_badge: groupRankBadge,
       },
       errors: errorsWithDetails,
-      pointsHistory: pointsHistoryList, // ✨ جديد
+      pointsHistory: pointsHistoryList,
     })
 
   } catch (error) {
