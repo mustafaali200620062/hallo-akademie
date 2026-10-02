@@ -86,11 +86,16 @@ export default function ExamSolvePage({ params }) {
 
         setAttempt(attemptsData)
 
+        // ✅ نجيب حالة طلب الاستكمال
         const reentryRes = await fetch(`/api/reentry-requests/student?student_id=${sId}&exam_id=${examId}`)
         const reentryData = await reentryRes.json()
 
-        if (reentryRes.ok && reentryData.length > 0) {
-          setReentryStatus(reentryData[0].status)
+        if (reentryRes.ok && Array.isArray(reentryData) && reentryData.length > 0) {
+          // ✅ نجيبه الأحدث
+          const sorted = reentryData.sort((a, b) =>
+            new Date(b.requested_at || 0) - new Date(a.requested_at || 0)
+          )
+          setReentryStatus(sorted[0].status)
         }
 
         const elapsed = (Date.now() - new Date(attemptsData.started_at).getTime()) / 60000
@@ -111,6 +116,7 @@ export default function ExamSolvePage({ params }) {
         setAnswers(answersMap)
 
       } else {
+        // ✅ ما فيش محاولة → ننشئ جديدة
         const createRes = await fetch('/api/student/attempts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -248,6 +254,7 @@ export default function ExamSolvePage({ params }) {
 
   const handleRequestReentry = async () => {
     setRequestingReentry(true)
+    setError(null)
     try {
       const res = await fetch('/api/reentry-requests', {
         method: 'POST',
@@ -345,60 +352,130 @@ export default function ExamSolvePage({ params }) {
     )
   }
 
-  const shouldBlock = (
-    attempt?.status === 'locked' ||
-    (attempt?.status === 'in_progress' && timeLeft <= 0) ||
-    (examEnded && exam?.status !== 'active')
+  // ═══════════════════════════════════════════
+  // ✅ شروط المنع والحماية
+  // ═══════════════════════════════════════════
+  const isTimeOut = attempt?.status === 'in_progress' && timeLeft <= 0
+  const isLocked = attempt?.status === 'locked'
+  const isEnded = examEnded && exam?.status !== 'active'
+
+  // ✅ الشرط الجديد: خرج من الاختبار + مفيش موافقة
+  const needsReentry = (
+    attempt?.status === 'in_progress' &&
+    attempt?.is_reentry_allowed !== true &&
+    reentryStatus !== 'approved' &&
+    !isTimeOut &&
+    !isEnded &&
+    !isLocked
   )
 
-  if (shouldBlock) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-md w-full text-center">
-          <div className="text-5xl md:text-6xl mb-4">⏰</div>
-          <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-2">
-            {examEnded ? 'Prüfungszeit abgelaufen' : 'Prüfung geschlossen'}
-          </h1>
-          <p className="text-gray-600 mb-6 font-medium text-sm md:text-base">
-            {examEnded
-              ? 'Die Zeit für diese Prüfung ist abgelaufen.'
-              : 'Die Prüfung wurde geschlossen. Sie können die Fortsetzung beantragen.'}
-          </p>
+  const shouldBlock = isLocked || isTimeOut || isEnded || needsReentry
 
-          {reentryStatus === 'pending' && (
+  if (shouldBlock) {
+    const isWaitingApproval = reentryStatus === 'pending'
+    const isRejected = reentryStatus === 'rejected'
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center fade-in-up">
+
+          {/* ═══ أيقونة حسب الحالة ═══ */}
+          {isTimeOut || isEnded ? (
+            <>
+              <div className="text-5xl md:text-6xl mb-4">⏰</div>
+              <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-2">
+                انتهى وقت الاختبار
+              </h1>
+              <p className="text-gray-600 mb-6 font-medium text-sm md:text-base">
+                الوقت المسموح انتهى. اطلب استكمال من المدرس عشان تكمل
+              </p>
+            </>
+          ) : isLocked ? (
+            <>
+              <div className="text-5xl md:text-6xl mb-4">🔒</div>
+              <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-2">
+                الاختبار مغلق
+              </h1>
+              <p className="text-gray-600 mb-6 font-medium text-sm md:text-base">
+                تم قفل الاختبار. اطلب استكمال من المدرس
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="text-5xl md:text-6xl mb-4">🚪</div>
+              <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-2">
+                خرجت من الاختبار
+              </h1>
+              <p className="text-gray-600 mb-6 font-medium text-sm md:text-base">
+                عشان تكمل، لازم تبعت طلب استكمال للمدرس وينتظر الموافقة
+              </p>
+            </>
+          )}
+
+          {/* ═══ حالة الطلب ═══ */}
+          {isWaitingApproval && (
             <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 md:p-6 mb-4">
               <div className="text-4xl mb-2 animate-pulse">⏳</div>
               <p className="text-yellow-800 font-extrabold text-base md:text-lg">
-                Fortsetzungsantrag wird geprüft
+                طلب الاستكمال قيد المراجعة
               </p>
               <p className="text-yellow-700 text-xs md:text-sm font-bold mt-2">
-                Warten auf Genehmigung des Lehrers
+                في انتظار موافقة المدرس
               </p>
             </div>
           )}
 
-          {reentryStatus === 'rejected' && (
+          {isRejected && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 md:p-6 mb-4">
               <div className="text-4xl mb-2">❌</div>
-              <p className="text-red-800 font-extrabold text-base md:text-lg">Antrag abgelehnt</p>
+              <p className="text-red-800 font-extrabold text-base md:text-lg">
+                تم رفض طلب الاستكمال
+              </p>
+              <p className="text-red-700 text-xs md:text-sm font-bold mt-2">
+                تواصل مع المدرس
+              </p>
             </div>
           )}
 
-          {!reentryStatus && attempt && (
+          {/* ═══ زر إرسال الطلب ═══ */}
+          {!reentryStatus && attempt && !isTimeOut && !isEnded && (
             <button
               onClick={handleRequestReentry}
               disabled={requestingReentry}
-              className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 mb-3"
+              className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-extrabold hover:bg-blue-700 transition-colors disabled:opacity-50 mb-3 text-sm md:text-base btn-app active:scale-95"
             >
-              {requestingReentry ? '⏳ Wird gesendet...' : '📩 Fortsetzung beantragen'}
+              {requestingReentry ? '⏳ جاري الإرسال...' : '📩 اطلب استكمال الاختبار'}
+            </button>
+          )}
+
+          {(isTimeOut || isEnded) && !reentryStatus && attempt && (
+            <button
+              onClick={handleRequestReentry}
+              disabled={requestingReentry}
+              className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-extrabold hover:bg-blue-700 transition-colors disabled:opacity-50 mb-3 text-sm md:text-base btn-app active:scale-95"
+            >
+              {requestingReentry ? '⏳ جاري الإرسال...' : '📩 اطلب استكمال الاختبار'}
+            </button>
+          )}
+
+          {isRejected && (
+            <button
+              onClick={async () => {
+                setReentryStatus(null)
+                await handleRequestReentry()
+              }}
+              disabled={requestingReentry}
+              className="w-full bg-orange-500 text-white px-6 py-3.5 rounded-xl font-extrabold hover:bg-orange-600 transition-colors disabled:opacity-50 mb-3 text-sm md:text-base btn-app active:scale-95"
+            >
+              {requestingReentry ? '⏳ جاري الإرسال...' : '🔄 أعد المحاولة'}
             </button>
           )}
 
           <button
             onClick={() => router.push('/student/exams')}
-            className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+            className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-300 transition-colors text-sm md:text-base active:scale-95"
           >
-            ← Zurück zu den Prüfungen
+            ← العودة للاختبارات
           </button>
         </div>
       </div>
@@ -441,7 +518,6 @@ export default function ExamSolvePage({ params }) {
       })
   }
 
-  // ✅ عدد الأسئلة المُجابة
   const answeredCount = questions.filter(q => {
     const a = answers[q.id]
     if (a === undefined || a === null) return false
@@ -453,7 +529,7 @@ export default function ExamSolvePage({ params }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
 
-      {/* ═══ Sticky Header ═══ */}
+      {/* Sticky Header */}
       <div className={`sticky top-0 z-50 shadow-lg ${isTimeWarning ? 'bg-red-600' : 'bg-green-600'} text-white transition-colors safe-top`}>
         <div className="max-w-4xl mx-auto px-3 md:px-4 py-2.5 md:py-3">
           <div className="flex justify-between items-center mb-2 gap-2">
@@ -476,7 +552,6 @@ export default function ExamSolvePage({ params }) {
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
-          {/* ✅ عداد الإجابات */}
           <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-bold opacity-90">
             <span dir="ltr">✅ {answeredCount} / {questions.length} beantwortet</span>
             <span dir="ltr">{Math.round(progressPercent)}%</span>
@@ -484,7 +559,6 @@ export default function ExamSolvePage({ params }) {
         </div>
       </div>
 
-      {/* ═══ Saving Indicator ═══ */}
       {savingStatus && (
         <div className={`fixed top-24 md:top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-lg text-xs md:text-sm font-bold transition-all fade-in-up ${
           savingStatus === 'saving' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
@@ -496,7 +570,6 @@ export default function ExamSolvePage({ params }) {
         </div>
       )}
 
-      {/* ═══ Warning ═══ */}
       {isTimeWarning && (
         <div className="bg-red-100 border-b-2 border-red-400 py-2 px-3 md:px-4 text-center">
           <p className="text-red-700 font-extrabold text-xs md:text-sm" dir="ltr">
@@ -505,7 +578,7 @@ export default function ExamSolvePage({ params }) {
         </div>
       )}
 
-      {/* ═══ Questions ═══ */}
+      {/* Questions */}
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8 pb-32 md:pb-8">
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <div className="space-y-4 md:space-y-6">
@@ -529,8 +602,7 @@ export default function ExamSolvePage({ params }) {
                 ((question.question_type === 'image' || question.question_type === 'audio') && hasTextOptions)
 
               return (
-                <div key={question.id} className="bg-white rounded-2xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 fade-in-up">
-                  {/* Header */}
+                <div key={question.id} className="bg-white rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 fade-in-up">
                   <div className="flex justify-between items-start mb-3 md:mb-4 pb-3 border-b border-gray-200 gap-2">
                     <div className="flex items-center gap-2 md:gap-3 min-w-0">
                       <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-extrabold shadow-md text-sm md:text-base flex-shrink-0">
@@ -548,12 +620,10 @@ export default function ExamSolvePage({ params }) {
                     </span>
                   </div>
 
-                  {/* Text */}
                   <p className="text-gray-800 mb-4 md:mb-5 font-bold text-base md:text-lg leading-relaxed" dir="ltr">
                     {question.question_text}
                   </p>
 
-                  {/* Image */}
                   {question.question_type === 'image' && (
                     <div className="mb-4 md:mb-5">
                       {question.media_url ? (
@@ -574,7 +644,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* Audio */}
                   {question.question_type === 'audio' && (
                     <div className="mb-4 md:mb-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3 md:p-4">
                       <div className="flex items-center gap-2 md:gap-3 mb-3">
@@ -600,7 +669,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* Options */}
                   {showOptions && (
                     <div className="space-y-2 md:space-y-3">
                       {isMultiple && (
@@ -642,7 +710,6 @@ export default function ExamSolvePage({ params }) {
                     </div>
                   )}
 
-                  {/* Text input */}
                   {question.question_type === 'text' && (
                     <textarea
                       value={answers[question.id] || ''}
@@ -654,7 +721,6 @@ export default function ExamSolvePage({ params }) {
                     />
                   )}
 
-                  {/* Matching */}
                   {question.question_type === 'matching' && (
                     <div className="space-y-2 md:space-y-3">
                       {options.map((pair, i) => {
@@ -687,7 +753,6 @@ export default function ExamSolvePage({ params }) {
             })}
           </div>
 
-          {/* ═══ Submit Button (Desktop) ═══ */}
           <div className="mt-6 md:mt-8 mb-6 md:mb-8 hidden md:block">
             <button
               type="submit"
@@ -703,7 +768,6 @@ export default function ExamSolvePage({ params }) {
         </form>
       </div>
 
-      {/* ═══ Fixed Submit Button (Mobile) ═══ */}
       <div
         className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-white border-t-2 border-gray-200 shadow-2xl"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
